@@ -6,22 +6,22 @@
 
 | STT | Họ và Tên | Vai Trò | Nhiệm Vụ Chính |
 | :---: | :--- | :--- | :--- |
-| 1 | **Lê Minh Quân** | Thành viên | Setup môi trường dự án, cấu hình Axios, Core CSS, Common Components và Services[cite: 6, 7]. |
-| 2 | **Ngô Gia Bảo** | Thành viên | Xây dựng hệ thống File I/O, mã hóa Bcrypt, Profile API, Layout và Giao diện ghi chú[cite: 6, 7]. |
-| 3 | **Nguyễn Hoài Linh** | Thành viên | Xây dựng API Topic, API Note, Auth Guard, Context API, Vùng riêng tư và Routing[cite: 6, 7]. |
+| 1 | **Lê Minh Quân** | Thành viên | Setup môi trường dự án, cấu hình Axios, Core CSS, Common Components và Services. |
+| 2 | **Ngô Gia Bảo** | Thành viên | Xây dựng hệ thống File I/O, mã hóa Bcrypt, Profile API, Layout và Giao diện ghi chú. |
+| 3 | **Nguyễn Hoài Linh** | Thành viên | Xây dựng API Topic, API Note, Auth Guard, Context API, Vùng riêng tư và Routing. |
 
 ---
 
 ## 2. MÔ TẢ SƠ LƯỢC ĐỒ ÁN
 
-**Private Note-Taking App** là ứng dụng ghi chú cá nhân đa nền tảng web, áp dụng kiến trúc Monorepo với công nghệ hiện đại (Frontend: React 18, Vite, Tailwind CSS v4; Backend: Node.js, Express)[cite: 4, 6].
+**Private Note-Taking App** là ứng dụng ghi chú cá nhân đa nền tảng web, áp dụng kiến trúc Monorepo với công nghệ hiện đại (Frontend: React 18, Vite, Tailwind CSS v4; Backend: Node.js, Express).
 
 ### Các chức năng nổi bật:
-* **Quản lý danh mục chủ đề (Topics):** Hỗ trợ tạo, sửa, xóa và hiển thị đầy đủ tên chủ đề có dấu tiếng Việt[cite: 4, 6].
-* **Quản lý ghi chú thường (Notes CRUD):** Tạo mới, chỉnh sửa, xóa và tìm kiếm nhanh ghi chú theo thời gian thực (tích hợp kỹ thuật Debounce chống quá tải API)[cite: 4, 7].
-* **Vùng riêng tư bảo mật 2 lớp (Private Zone):** Khu vực lưu trữ các ghi chú nhạy cảm, yêu cầu bảo vệ bằng mật khẩu (mã hóa Bcrypt, yêu cầu độ dài từ 7 ký tự trở lên)[cite: 4, 6, 7]. Tự động khóa an toàn sau một khoảng thời gian không thao tác[cite: 4, 7].
-* **Hệ thống lưu trữ tệp cục bộ an toàn (Local File Storage):** Lưu trữ dữ liệu dạng JSON, áp dụng cơ chế ghi an toàn (Atomic Write) chống lỗi mất dữ liệu khi xảy ra ngắt quãng tiến trình[cite: 4, 6].
-* **Tùy biến giao diện (Theming System):** Chuyển đổi linh hoạt chế độ Sáng/Tối (Dark Mode) và bộ chọn 7 màu chủ đạo, lưu trữ trạng thái chống giật màn hình khi tải lại trang[cite: 4, 7].
+* **Quản lý danh mục chủ đề (Topics):** Hỗ trợ tạo, sửa, xóa và hiển thị đầy đủ tên chủ đề có dấu tiếng Việt.
+* **Quản lý ghi chú thường (Notes CRUD):** Tạo mới, chỉnh sửa, xóa và tìm kiếm nhanh ghi chú theo thời gian thực (tích hợp kỹ thuật Debounce chống quá tải API).
+* **Vùng riêng tư bảo mật 2 lớp (Private Zone):** Khu vực lưu trữ các ghi chú nhạy cảm, yêu cầu bảo vệ bằng mật khẩu (mã hóa Bcrypt, yêu cầu độ dài từ 7 ký tự trở lên). Tự động khóa an toàn sau một khoảng thời gian không thao tác.
+* **Hệ thống lưu trữ tệp cục bộ an toàn (Local File Storage):** Lưu trữ dữ liệu dạng JSON, áp dụng cơ chế ghi an toàn (Atomic Write) chống lỗi mất dữ liệu khi xảy ra ngắt quãng tiến trình.
+* **Tùy biến giao diện (Theming System):** Chuyển đổi linh hoạt chế độ Sáng/Tối (Dark Mode) và bộ chọn 7 màu chủ đạo, lưu trữ trạng thái chống giật màn hình khi tải lại trang.
 
 ---
 
@@ -131,7 +131,7 @@ quan-ly-ghi-chu/
 
 ## 4. HƯỚNG DẪN CÀI ĐẶT & CHẠY ỨNG DỤNG CHO THÀNH VIÊN
 
-Khi các thành viên clone mã nguồn từ GitHub về máy tính cá nhân, các thư mục `node_modules` và tệp `.env` sẽ không có sẵn do đã được chặn bởi `.gitignore`[cite: 4, 6]. Thực hiện tuần tự các bước sau để thiết lập môi trường:
+Khi các thành viên clone mã nguồn từ GitHub về máy tính cá nhân, các thư mục `node_modules` và tệp `.env` sẽ không có sẵn do đã được chặn bởi `.gitignore`. Thực hiện tuần tự các bước sau để thiết lập môi trường:
 
 ### Bước 1: Clone dự án về máy
 Mở Terminal/Git Bash tại vị trí thư mục mong muốn và thực hiện clone:
@@ -144,39 +144,39 @@ cd quan-ly-ghi-chu
 
 ### Bước 2: Cài đặt và cấu hình Backend
 
-1. **Di chuyển vào thư mục backend và cài đặt thư viện[cite: 4, 6]:**
+1. **Di chuyển vào thư mục backend và cài đặt thư viện:**
    ```bash
    cd backend
    npm install
    ```
 
-2. **Tạo tệp biến môi trường `.env`[cite: 4, 6]:**
-   Tạo tệp `.env` ngay trong thư mục `backend/` với nội dung sau[cite: 4, 6]:
+2. **Tạo tệp biến môi trường `.env`:**
+   Tạo tệp `.env` ngay trong thư mục `backend/` với nội dung sau:
    ```env
    PORT=5000
    ```
 
-3. **Khởi động Backend Server[cite: 4, 6]:**
+3. **Khởi động Backend Server:**
    ```bash
    node server.js
    ```
-   *Khi Terminal báo `Server running on port 5000` là server đã sẵn sàng hoạt động[cite: 4, 6].*
+   *Khi Terminal báo `Server running on port 5000` là server đã sẵn sàng hoạt động.*
 
 ---
 
 ### Bước 3: Cài đặt và cấu hình Frontend
 
-1. **Mở một cửa sổ Terminal mới, di chuyển vào thư mục frontend[cite: 4, 6]:**
+1. **Mở một cửa sổ Terminal mới, di chuyển vào thư mục frontend:**
    ```bash
    cd frontend
    npm install
    ```
 
-2. **Khởi chạy môi trường phát triển (Development Server)[cite: 4, 6]:**
+2. **Khởi chạy môi trường phát triển (Development Server):**
    ```bash
    npm run dev
    ```
-   *Terminal sẽ cung cấp đường dẫn truy cập (mặc định là `http://localhost:5173`)[cite: 4, 6].*
+   *Terminal sẽ cung cấp đường dẫn truy cập (mặc định là `http://localhost:5173`).*
 
 3. **Mở trình duyệt:** 
-   Truy cập `http://localhost:5173` để bắt đầu trải nghiệm và phát triển ứng dụng[cite: 4, 6].
+   Truy cập `http://localhost:5173` để bắt đầu trải nghiệm và phát triển ứng dụng.
