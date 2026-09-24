@@ -24,6 +24,5 @@ function createSlug(text) {
     .replace(/^-+|-+$/g, '');
 }
 
-module.exports = {
-  createSlug
-};
+// SỬA DÒNG NÀY: Export trực tiếp hàm createSlug thay vì gom vào object {}
+module.exports = createSlug;

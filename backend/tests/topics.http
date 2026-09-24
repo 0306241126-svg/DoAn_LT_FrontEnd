@@ -1,0 +1,21 @@
+### 1. Lấy danh sách chủ đề
+GET http://localhost:5000/api/topics
+
+### 2. Tạo chủ đề mới
+POST http://localhost:5000/api/topics
+Content-Type: application/json
+
+{
+  "name": "Học tập"
+}
+
+### 3. Sửa tên chủ đề
+PUT http://localhost:5000/api/topics/hoc-tap
+Content-Type: application/json
+
+{
+  "name": "Học tập nâng cao"
+}
+
+### 4. Xóa chủ đề
+DELETE http://localhost:5000/api/topics/hoc-tap
