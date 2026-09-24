@@ -18,4 +18,4 @@ Content-Type: application/json
 }
 
 ### 4. Xóa chủ đề
-DELETE http://localhost:5000/api/topics/hoc-tap
+//DELETE http://localhost:5000/api/topics/hoc-tap
