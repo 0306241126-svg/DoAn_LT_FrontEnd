@@ -1,21 +1,24 @@
-### 1. Lấy danh sách chủ đề
+### 1. Lấy danh sách chủ đề ban đầu
 GET http://localhost:5000/api/topics
 
-### 2. Tạo chủ đề mới
+### 2. Tạo chủ đề mới "Học tập"
 POST http://localhost:5000/api/topics
 Content-Type: application/json
 
 {
-  "name": "Học tập"
+  "name": "Đồ Án"
 }
 
-### 3. Sửa tên chủ đề
+### 3. Kiểm tra lại danh sách xem đã có "Học tập" và slug "hoc-tap" chưa
+GET http://localhost:5000/api/topics
+
+### 4. Đổi tên chủ đề "Học tập"
 PUT http://localhost:5000/api/topics/hoc-tap
 Content-Type: application/json
 
 {
-  "name": "Học tập nâng cao"
+  "newName": "Đo"
 }
 
-### 4. Xóa chủ đề
-//DELETE http://localhost:5000/api/topics/hoc-tap
+### 5. Xóa chủ đề
+# DELETE http://localhost:5000/api/topics/hoc-tap
