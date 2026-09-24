@@ -4,5 +4,10 @@
     "theme": "light",
     "primaryColor": "#10b981"
   },
-  "topics": []
+  "topics": [
+    {
+      "name": "Học tập",
+      "slug": "hc-tp"
+    }
+  ]
 }
