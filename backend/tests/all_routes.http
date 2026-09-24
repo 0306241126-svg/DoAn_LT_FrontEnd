@@ -1,0 +1,67 @@
+### ==============================================
+### CỤM 1: KIỂM TRA API HỒ SƠ (/api/profile)
+### ==============================================
+
+### 1.1 Lấy thông tin hồ sơ
+GET http://localhost:5000/api/profile
+
+### 1.2 Cập nhật tên hiển thị & màu giao diện
+PUT http://localhost:5000/api/profile
+Content-Type: application/json
+
+{
+  "displayName": "Hoài Linh",
+  "preferences": {
+    "primaryColor": "#8b5cf6"
+  }
+}
+
+### ==============================================
+### CỤM 2: KIỂM TRA API CHỦ ĐỀ (/api/topics)
+### ==============================================
+
+### 2.1 Lấy danh sách toàn bộ chủ đề
+GET http://localhost:5000/api/topics
+
+### 2.2 Tạo chủ đề mới "Học tập"
+POST http://localhost:5000/api/topics
+Content-Type: application/json
+
+{
+  "name": "Học tập"
+}
+
+### ==============================================
+### CỤM 3: KIỂM TRA API GHI CHÚ (/api/notes)
+### ==============================================
+
+### 3.1 Tạo ghi chú mới vào chủ đề "hoc-tap"
+POST http://localhost:5000/api/notes/hoc-tap
+Content-Type: application/json
+
+{
+  "title": "Ghi chú buổi học React",
+  "content": "Học cách sử dụng Custom Hooks và Context API"
+}
+
+### 3.2 Lấy danh sách ghi chú thuộc chủ đề "hoc-tap"
+GET http://localhost:5000/api/notes/hoc-tap
+
+### ==============================================
+### CỤM 4: KIỂM TRA API VÙNG RIÊNG TƯ (/api/private)
+### ==============================================
+
+### 4.1 Thử truy cập ghi chú riêng tư KHÔNG CÓ TOKEN (kỳ vọng trả về lỗi 401)
+GET http://localhost:5000/api/private/notes
+
+### 4.2 Thiết lập mật khẩu hoặc mở khóa vùng riêng tư lấy token
+POST http://localhost:5000/api/private/unlock
+Content-Type: application/json
+
+{
+  "password": "123456"
+}
+
+### 4.3 Đọc ghi chú riêng tư CÓ KÈM TOKEN (Thay token vừa nhận được ở bước 4.2 vào bên dưới)
+GET http://localhost:5000/api/private/notes
+Authorization: Bearer <dien_token_o_day>
