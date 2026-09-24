@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const profileRoutes = require('./src/routes/profileRoutes');
 require('dotenv').config();
 
 const app = express();
@@ -8,6 +9,7 @@ const PORT = process.env.PORT || 5000;
 // Middleware phân tích dữ liệu JSON và cho phép CORS
 app.use(cors());
 app.use(express.json());
+app.use('/api/profile', profileRoutes);
 
 // Endpoint kiểm tra hoạt động cơ bản
 app.get('/', (req, res) => {
