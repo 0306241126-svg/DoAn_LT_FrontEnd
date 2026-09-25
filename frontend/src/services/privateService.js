@@ -12,10 +12,24 @@ export const privateService = {
     }
   },
 
-  // Đổi hoặc thiết lập mật khẩu vùng riêng tư
+  // Thiết lập mật khẩu vùng riêng tư lần đầu
+  setupPassword: async (password) => {
+    try {
+      const data = await api.post('/private/setup', { password });
+      return data;
+    } catch (error) {
+      console.error('Lỗi thiết lập mật khẩu vùng riêng tư:', error?.response?.data || error?.message);
+      throw error;
+    }
+  },
+
+  // Đổi mật khẩu vùng riêng tư
   changePassword: async (currentPassword, newPassword) => {
     try {
-      const data = await api.post('/private/password', { currentPassword, newPassword });
+      const data = await api.put('/private/change-password', {
+        oldPassword: currentPassword,
+        newPassword,
+      });
       return data;
     } catch (error) {
       console.error('Lỗi đổi mật khẩu vùng riêng tư:', error?.response?.data || error?.message);

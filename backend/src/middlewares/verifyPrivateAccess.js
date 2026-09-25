@@ -3,8 +3,11 @@
  * File: backend/src/middlewares/verifyPrivateAccess.js
  */
 
-// Token bí mật cố định phục vụ xác thực vùng riêng tư (khớp với token trả về từ API Unlock)
-const HARDCODED_PRIVATE_TOKEN = 'secret-private-token-123';
+const sessionTokens = new Map();
+
+function setSessionToken(token, username) {
+  sessionTokens.set(token, username);
+}
 
 /**
  * Middleware kiểm tra Authorization Header từ Client
@@ -21,17 +24,19 @@ function verifyPrivateAccess(req, res, next) {
   }
 
   // 3. Tách lấy phần chuỗi token phía sau chữ "Bearer "
-  const token = authHeader.split(' ')[1];
+  const token = authHeader.slice('Bearer '.length).trim();
 
-  // 4. Đối chiếu token với chuỗi mã hóa hợp lệ
-  if (token !== HARDCODED_PRIVATE_TOKEN) {
+  // 4. Đối chiếu token với phiên đã được tạo khi unlock
+  const username = sessionTokens.get(token);
+  if (!username) {
     return res.status(403).json({
       message: 'Token không hợp lệ hoặc đã hết hạn.'
     });
   }
 
-  // 5. Token hợp lệ -> Chuyển tiếp request sang Controller xử lý tiếp
+  req.authUsername = username;
   next();
 }
 
 module.exports = verifyPrivateAccess;
+module.exports.setSessionToken = setSessionToken;

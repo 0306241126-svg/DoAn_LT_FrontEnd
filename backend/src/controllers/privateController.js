@@ -1,151 +1,278 @@
 const path = require('path');
-const { readJson, atomicWriteJson } = require('../utils/fileHelper');
+const crypto = require('crypto');
 const { DATA_DIR, DEFAULT_USERNAME } = require('../config/constants');
+const { readJson, atomicWriteJson } = require('../utils/fileHelper');
+const { hashPassword, comparePassword } = require('../utils/encryption');
+const { setSessionToken } = require('../middlewares/verifyPrivateAccess');
 
-const profilePath = path.join(DATA_DIR, 'users', DEFAULT_USERNAME, 'profile.json');
-const privateFilePath = path.join(DATA_DIR, 'users', DEFAULT_USERNAME, 'private.json');
-
-const HARDCODED_PRIVATE_TOKEN = 'secret-private-token-123';
+const getProfilePath = (username) => path.join(DATA_DIR, 'users', username, 'profile.json');
+const getPrivateFilePath = (username) => path.join(DATA_DIR, 'users', username, 'private.json');
 
 /**
- * API Mở khóa vùng riêng tư (POST /api/private/unlock)
+ * POST /api/private/setup
+ * Thiết lập mật khẩu lần đầu nếu profile chưa có
  */
-async function unlockPrivate(req, res) {
+const setupPassword = async (req, res, next) => {
   try {
     const { password } = req.body;
+    const username = req.headers['x-username'] || DEFAULT_USERNAME;
+    const profilePath = getProfilePath(username);
 
-    if (!password) {
-      return res.status(400).json({ message: 'Vui lòng nhập mật khẩu riêng tư.' });
+    if (!password || typeof password !== 'string' || password.length < 4) {
+      return res.status(400).json({
+        success: false,
+        message: 'Mật khẩu phải có độ dài ít nhất 4 ký tự'
+      });
     }
 
     const profile = await readJson(profilePath);
-    // Lấy password trong profile, nếu chưa đặt thì mặc định là "123456"
-    const correctPassword = profile.privatePassword || '123456';
-
-    if (password !== correctPassword) {
-      return res.status(401).json({ message: 'Mật khẩu riêng tư không chính xác.' });
+    if (profile.privatePasswordHash) {
+      return res.status(400).json({
+        success: false,
+        message: 'Mật khẩu đã được thiết lập trước đó. Vui lòng chọn đổi mật khẩu'
+      });
     }
 
-    // Trả về token mở khóa nếu đúng mật khẩu
+    profile.privatePasswordHash = await hashPassword(password);
+    await atomicWriteJson(profilePath, profile);
+
+    // Khởi tạo sẵn file private.json rỗng nếu chưa có
+    const privateFilePath = getPrivateFilePath(username);
+    try {
+      await readJson(privateFilePath);
+    } catch {
+      await atomicWriteJson(privateFilePath, []);
+    }
+
     return res.status(200).json({
-      message: 'Mở khóa thành công.',
-      token: HARDCODED_PRIVATE_TOKEN
+      success: true,
+      message: 'Thiết lập mật khẩu thành công'
     });
   } catch (error) {
-    console.error('Lỗi unlock:', error);
-    return res.status(500).json({ message: 'Lỗi máy chủ khi mở khóa.' });
+    next(error);
   }
-}
+};
 
 /**
- * Lấy danh sách ghi chú riêng tư (GET /api/private/notes)
+ * POST /api/private/unlock
+ * Xác thực mật khẩu và sinh token phiên
  */
-async function getPrivateNotes(req, res) {
+const unlockPrivate = async (req, res, next) => {
   try {
-    let privateNotes = [];
-    try {
-      privateNotes = await readJson(privateFilePath);
-    } catch (err) {
-      privateNotes = [];
+    const { password } = req.body;
+    const username = req.headers['x-username'] || DEFAULT_USERNAME;
+    const profilePath = getProfilePath(username);
+
+    if (!password) {
+      return res.status(400).json({ success: false, message: 'Vui lòng nhập mật khẩu' });
     }
-    return res.status(200).json(privateNotes);
+
+    const profile = await readJson(profilePath);
+    if (!profile.privatePasswordHash) {
+      return res.status(400).json({
+        success: false,
+        message: 'Chưa thiết lập mật khẩu bảo vệ vùng riêng tư'
+      });
+    }
+
+    const isMatch = await comparePassword(password, profile.privatePasswordHash);
+    if (!isMatch) {
+      return res.status(401).json({
+        success: false,
+        message: 'Mật khẩu không chính xác'
+      });
+    }
+
+    // Tạo token ngẫu nhiên
+    const token = crypto.randomBytes(32).toString('hex');
+    setSessionToken(token, username);
+
+    return res.status(200).json({
+      success: true,
+      token
+    });
   } catch (error) {
-    console.error('Lỗi lấy private notes:', error);
-    return res.status(500).json({ message: 'Lỗi máy chủ khi đọc vùng riêng tư.' });
+    next(error);
   }
-}
+};
 
 /**
- * Tạo ghi chú riêng tư mới (POST /api/private/notes)
+ * PUT /api/private/change-password
+ * Đổi mật khẩu vùng riêng tư
  */
-async function createPrivateNote(req, res) {
+const changePassword = async (req, res, next) => {
+  try {
+    const { oldPassword, newPassword } = req.body;
+    const username = req.headers['x-username'] || DEFAULT_USERNAME;
+    const profilePath = getProfilePath(username);
+
+    if (!oldPassword || !newPassword || newPassword.length < 4) {
+      return res.status(400).json({
+        success: false,
+        message: 'Mật khẩu mới phải có tối thiểu 4 ký tự'
+      });
+    }
+
+    const profile = await readJson(profilePath);
+    const isMatch = await comparePassword(oldPassword, profile.privatePasswordHash);
+    if (!isMatch) {
+      return res.status(401).json({
+        success: false,
+        message: 'Mật khẩu cũ không chính xác'
+      });
+    }
+
+    profile.privatePasswordHash = await hashPassword(newPassword);
+    await atomicWriteJson(profilePath, profile);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Đổi mật khẩu thành công'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * GET /api/private/notes
+ * Đọc toàn bộ danh sách ghi chú riêng tư
+ */
+const getPrivateNotes = async (req, res, next) => {
+  try {
+    const username = req.authUsername || DEFAULT_USERNAME;
+    const privateFilePath = getPrivateFilePath(username);
+
+    let notes = [];
+    try {
+      notes = await readJson(privateFilePath);
+    } catch {
+      notes = [];
+      await atomicWriteJson(privateFilePath, []);
+    }
+
+    return res.status(200).json(notes);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * POST /api/private/notes
+ * Thêm ghi chú riêng tư mới
+ */
+const createPrivateNote = async (req, res, next) => {
   try {
     const { title, content } = req.body;
+    const username = req.authUsername || DEFAULT_USERNAME;
+    const privateFilePath = getPrivateFilePath(username);
 
-    if (!title || !title.trim()) {
-      return res.status(400).json({ message: 'Tiêu đề không được để trống.' });
+    if (!title || typeof title !== 'string' || title.trim() === '') {
+      return res.status(400).json({ success: false, message: 'Tiêu đề không được để trống' });
     }
 
-    let privateNotes = [];
+    let notes = [];
     try {
-      privateNotes = await readJson(privateFilePath);
-    } catch (err) {
-      privateNotes = [];
+      notes = await readJson(privateFilePath);
+    } catch {
+      notes = [];
     }
 
-    const now = new Date().toISOString();
+    const nowIso = new Date().toISOString();
     const newNote = {
-      id: Date.now().toString(),
+      id: `priv-${Date.now()}`,
       title: title.trim(),
-      content: content ? content.trim() : '',
-      createdAt: now,
-      updatedAt: now
+      content: typeof content === 'string' ? content : '',
+      createdAt: nowIso,
+      updatedAt: nowIso
     };
 
-    privateNotes.push(newNote);
-    await atomicWriteJson(privateFilePath, privateNotes);
+    notes.unshift(newNote);
+    await atomicWriteJson(privateFilePath, notes);
 
-    return res.status(201).json(newNote);
+    return res.status(201).json({
+      success: true,
+      data: newNote
+    });
   } catch (error) {
-    console.error('Lỗi tạo private note:', error);
-    return res.status(500).json({ message: 'Lỗi máy chủ khi tạo ghi chú riêng tư.' });
+    next(error);
   }
-}
+};
 
 /**
- * Cập nhật ghi chú riêng tư (PUT /api/private/notes/:id)
+ * PUT /api/private/notes/:id
+ * Cập nhật ghi chú riêng tư
  */
-async function updatePrivateNote(req, res) {
+const updatePrivateNote = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { title, content } = req.body;
+    const username = req.authUsername || DEFAULT_USERNAME;
+    const privateFilePath = getPrivateFilePath(username);
 
-    const privateNotes = await readJson(privateFilePath);
-    const index = privateNotes.findIndex(n => n.id === id);
-
-    if (index === -1) {
-      return res.status(404).json({ message: 'Không tìm thấy ghi chú riêng tư.' });
+    if (!title || typeof title !== 'string' || title.trim() === '') {
+      return res.status(400).json({ success: false, message: 'Tiêu đề không được để trống' });
     }
 
-    privateNotes[index] = {
-      ...privateNotes[index],
-      title: title !== undefined ? title.trim() : privateNotes[index].title,
-      content: content !== undefined ? content.trim() : privateNotes[index].content,
+    const notes = await readJson(privateFilePath);
+    const index = notes.findIndex((n) => n.id === id);
+
+    if (index === -1) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy ghi chú riêng tư' });
+    }
+
+    const updatedNote = {
+      ...notes[index],
+      title: title.trim(),
+      content: typeof content === 'string' ? content : notes[index].content,
       updatedAt: new Date().toISOString()
     };
 
-    await atomicWriteJson(privateFilePath, privateNotes);
-    return res.status(200).json(privateNotes[index]);
+    notes[index] = updatedNote;
+    await atomicWriteJson(privateFilePath, notes);
+
+    return res.status(200).json({
+      success: true,
+      data: updatedNote
+    });
   } catch (error) {
-    console.error('Lỗi cập nhật private note:', error);
-    return res.status(500).json({ message: 'Lỗi máy chủ khi cập nhật.' });
+    next(error);
   }
-}
+};
 
 /**
- * Xóa ghi chú riêng tư (DELETE /api/private/notes/:id)
+ * DELETE /api/private/notes/:id
+ * Xóa ghi chú riêng tư
  */
-async function deletePrivateNote(req, res) {
+const deletePrivateNote = async (req, res, next) => {
   try {
     const { id } = req.params;
+    const username = req.authUsername || DEFAULT_USERNAME;
+    const privateFilePath = getPrivateFilePath(username);
 
-    const privateNotes = await readJson(privateFilePath);
-    const updatedNotes = privateNotes.filter(n => n.id !== id);
+    const notes = await readJson(privateFilePath);
+    const initialLen = notes.length;
+    const filtered = notes.filter((n) => n.id !== id);
 
-    if (privateNotes.length === updatedNotes.length) {
-      return res.status(404).json({ message: 'Không tìm thấy ghi chú để xóa.' });
+    if (filtered.length === initialLen) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy ghi chú cần xóa' });
     }
 
-    await atomicWriteJson(privateFilePath, updatedNotes);
-    return res.status(200).json({ message: 'Xóa ghi chú riêng tư thành công.', id });
+    await atomicWriteJson(privateFilePath, filtered);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Xóa ghi chú riêng tư thành công'
+    });
   } catch (error) {
-    console.error('Lỗi xóa private note:', error);
-    return res.status(500).json({ message: 'Lỗi máy chủ khi xóa.' });
+    next(error);
   }
-}
+};
 
 module.exports = {
+  setupPassword,
   unlockPrivate,
+  changePassword,
   getPrivateNotes,
   createPrivateNote,
   updatePrivateNote,

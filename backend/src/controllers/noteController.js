@@ -1,3 +1,17 @@
+/**
+ * Sử dụng thư viện bổ trợ atomicWriteJson để ghi đè dữ liệu an toàn xuống đĩa cứng, tránh tình trạng lỗi hay mất dữ liệu khi ghi tệp.
+ * Sử dụng raedJson để đọc 
+ * Sử dụng findIndex để tìm
+ * Sử dụng filter để lọc 
+ * 
+ * Sử dụng atomicWriteJson thay vì fs.WriteFile thông thường --> ghi vào tệp tạm trước --> ghi đè lên tệp chính ( bảo vệ các sự cố).  
+ * 
+ */
+
+
+
+
+
 const path = require('path');
 const { readJson, atomicWriteJson } = require('../utils/fileHelper');
 const { DATA_DIR, DEFAULT_USERNAME } = require('../config/constants');
@@ -22,7 +36,7 @@ async function getNotesByTopic(req, res) {
     const filePath = getNoteFilePath(topicSlug);
 
     // Đọc danh sách ghi chú từ tệp [topicSlug].json
-    const notes = await readJson(filePath);
+    const notes = await readJson(filePath);   // Sử dụng readJson để đọc 
     return res.status(200).json(notes);
   } catch (error) {
     // Nếu tệp chưa tồn tại (chủ đề chưa tạo ghi chú nào) -> Báo lỗi 404
@@ -70,7 +84,7 @@ async function createNote(req, res) {
 
     // 3. Thêm ghi chú mới vào mảng và ghi đè an toàn xuống tệp tin
     notes.push(newNote);
-    await atomicWriteJson(filePath, notes);
+    await atomicWriteJson(filePath, notes); 
 
     return res.status(201).json(newNote);
   } catch (error) {
@@ -97,7 +111,7 @@ async function updateNote(req, res) {
     const notes = await readJson(filePath);
 
     // 2. Tìm vị trí ghi chú cần sửa theo ID
-    const noteIndex = notes.findIndex(n => n.id === id);
+    const noteIndex = notes.findIndex(n => n.id === id); // Sử dụng findIndex để tìm vị trí
     if (noteIndex === -1) {
       return res.status(404).json({ message: 'Không tìm thấy ghi chú.' });
     }
