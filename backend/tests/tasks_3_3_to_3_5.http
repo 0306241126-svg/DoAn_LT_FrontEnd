@@ -32,11 +32,11 @@ GET http://localhost:5000/api/private/notes
 
 ### 2.3. Lấy danh sách Ghi chú riêng tư VỚI TOKEN HỢP LỆ (Kỳ vọng: 200 OK)
 GET http://localhost:5000/api/private/notes
-Authorization: Bearer secret-private-token-123
+Authorization: Bearer <dien_token_o_day>
 
 ### 2.4. Tạo Ghi chú riêng tư mới
 POST http://localhost:5000/api/private/notes
-Authorization: Bearer secret-private-token-123
+Authorization: Bearer <dien_token_o_day>
 Content-Type: application/json
 
 {
