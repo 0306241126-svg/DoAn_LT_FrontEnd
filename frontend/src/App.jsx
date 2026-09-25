@@ -1,47 +1,27 @@
-import { useState, useEffect } from 'react';
-import useDebounce from './hooks/useDebounce';
+import React from 'react';
+import { Check, Moon, NotebookPen, Palette, Search, Sun } from 'lucide-react';
+import { ThemeProvider, THEME_COLORS, useTheme } from './context/ThemeContext';
+import './App.css';
 
-function App() {
-  const [searchTerm, setSearchTerm] = useState('');
-  const debouncedSearch = useDebounce(searchTerm, 500);
-
-  // useEffect này chỉ chạy khi debouncedSearch thay đổi (ngừng gõ 500ms)
-  useEffect(() => {
-    if (debouncedSearch) {
-      console.log('>>> [KÍCH HOẠT TÌM KIẾM]:', debouncedSearch);
-    }
-  }, [debouncedSearch]);
+function ThemeTestBox() {
+  const { isDark, setTheme, primaryColor, setPrimaryColor } = useTheme();
 
   return (
-    <div className="min-h-screen p-6 bg-background text-foreground">
-      <header className="p-4 rounded-xl text-white bg-(--color-primary) dark:bg-slate-900 shadow-md">
-        <h1 className="text-xl font-bold">Kiểm tra useDebounce (Giai đoạn 4.4)</h1>
-      </header>
-
-      <main className="mt-6 p-6 rounded-xl border border-border bg-card max-w-md space-y-4">
-        <div>
-          <label className="block text-sm font-medium mb-1">Thử gõ tìm kiếm:</label>
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Nhập chữ nhanh liên tục..."
-            className="w-full px-3 py-2 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-(--color-primary)"
-          />
-        </div>
-
-        <div className="text-sm space-y-1 bg-muted p-3 rounded-lg">
-          <p>
-            Giá trị gõ thực tế: <span className="font-semibold text-blue-600">{searchTerm || '(trống)'}</span>
-          </p>
-          <p>
-            Giá trị qua useDebounce (sau 500ms):{' '}
-            <span className="font-semibold text-green-600">{debouncedSearch || '(chưa kích hoạt)'}</span>
-          </p>
-        </div>
-      </main>
+    <div className="app-shell">
+      <aside className="app-sidebar">
+        <div className="brand"><div className="brand-mark"><NotebookPen size={19} /></div><div><strong>Private NoteApp</strong><span>Ghi chú của bạn</span></div></div>
+        <button className="new-topic">+ <span>Thêm chủ đề</span></button>
+        <nav className="topic-list"><span className="eyebrow">CHỦ ĐỀ</span><a className="topic active">▣ <span>Học tập</span></a><a className="topic">▣ <span>Công việc</span></a></nav>
+        <div className="sidebar-footer"><a className="topic">▣ <span>Vùng riêng tư</span></a><a className="topic active">⚙ <span>Cài đặt</span></a></div>
+      </aside>
+      <section className="app-main">
+        <header className="app-header"><div className="search-box"><Search size={17} /><input placeholder="Tìm kiếm ghi chú..." /></div><button className="icon-button" onClick={() => setTheme(isDark ? 'light' : 'dark')} aria-label="Đổi giao diện">{isDark ? <Sun size={17} /> : <Moon size={17} />}</button><div className="avatar">GB</div></header>
+        <main className="settings-page"><div className="page-heading"><h1>Cài đặt</h1><p>Quản lý giao diện và trải nghiệm ghi chú của bạn.</p></div><section className="settings-card"><div className="card-heading"><div className="card-icon"><Palette size={19} /></div><div><h2>Giao diện &amp; Màu sắc</h2><p>Chọn chế độ sáng/tối và màu chủ đạo.</p></div></div><div className="setting-group"><span className="setting-label">Chế độ hiển thị</span><div className="segmented-control"><button className={!isDark ? 'selected' : ''} onClick={() => setTheme('light')}><Sun size={16} /> Sáng</button><button className={isDark ? 'selected' : ''} onClick={() => setTheme('dark')}><Moon size={16} /> Tối</button></div></div><div className="setting-group"><span className="setting-label">Màu chủ đạo</span><div className="color-options">{THEME_COLORS.map((color) => <button key={color.id} className={primaryColor === color.value ? 'color-swatch selected' : 'color-swatch'} style={{ backgroundColor: color.value }} onClick={() => setPrimaryColor(color.value)} aria-label={color.name} aria-pressed={primaryColor === color.value}>{primaryColor === color.value && <Check size={18} />}</button>)}</div></div></section></main>
+      </section>
     </div>
   );
 }
 
-export default App;
+export default function App() {
+  return <ThemeProvider><ThemeTestBox /></ThemeProvider>;
+}
