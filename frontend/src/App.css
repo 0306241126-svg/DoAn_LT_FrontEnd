@@ -182,3 +182,73 @@
     border-right-color: var(--border);
   }
 }
+
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  background: var(--background);
+  color: var(--foreground);
+}
+
+.app-sidebar {
+  width: 288px;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  background: var(--sidebar);
+  color: var(--sidebar-foreground);
+}
+
+.brand, .app-header, .card-heading, .search-box, .topic, .new-topic, .segmented-control button {
+  display: flex;
+  align-items: center;
+}
+
+.brand { gap: 10px; padding: 20px; }
+.brand-mark, .card-icon { display: grid; place-items: center; background: var(--color-primary); color: white; }
+.brand-mark { width: 36px; height: 36px; border-radius: 10px; }
+.brand strong, .brand span { display: block; line-height: 1.2; }
+.brand strong { font-size: 14px; }
+.brand span { margin-top: 3px; color: var(--muted-foreground); font-size: 12px; }
+.new-topic { gap: 8px; margin: 0 12px; padding: 11px 14px; border: 0; border-radius: 8px; background: var(--color-primary); color: white; cursor: pointer; font-weight: 600; }
+.topic-list { flex: 1; padding: 22px 12px; }
+.eyebrow { display: block; padding: 0 10px 8px; color: var(--muted-foreground); font-size: 11px; font-weight: 700; letter-spacing: .08em; }
+.topic { gap: 10px; padding: 10px; border-radius: 8px; color: inherit; text-decoration: none; font-size: 14px; }
+.topic + .topic { margin-top: 3px; }
+.topic.active { background: var(--color-primary); color: white; }
+.sidebar-footer { padding: 12px; border-top: 1px solid var(--border); }
+.app-main { min-width: 0; flex: 1; }
+.app-header { height: 64px; gap: 12px; padding: 0 24px; border-bottom: 1px solid var(--border); }
+.search-box { width: min(100%, 560px); gap: 9px; margin: auto; padding: 10px 14px; border: 1px solid var(--border); border-radius: 999px; background: color-mix(in srgb, var(--muted) 65%, transparent); color: var(--muted-foreground); }
+.search-box input { width: 100%; border: 0; outline: 0; background: transparent; color: var(--foreground); }
+.icon-button { display: grid; place-items: center; width: 36px; height: 36px; border: 1px solid var(--border); border-radius: 8px; background: var(--background); color: var(--foreground); cursor: pointer; }
+.avatar { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: var(--color-primary); color: white; font-size: 13px; font-weight: 700; }
+.settings-page { width: min(100%, 768px); margin: 0 auto; padding: 32px 24px; }
+.page-heading { margin-bottom: 24px; }
+.page-heading h1 { font-size: 26px; letter-spacing: -.02em; }
+.page-heading p, .card-heading p { margin-top: 5px; color: var(--muted-foreground); font-size: 14px; }
+.settings-card { padding: 24px; border: 1px solid var(--border); border-radius: 12px; background: var(--card); box-shadow: 0 8px 25px rgb(0 0 0 / 4%); }
+.card-heading { gap: 12px; margin-bottom: 28px; }
+.card-icon { width: 38px; height: 38px; border-radius: 9px; }
+.card-heading h2 { font-size: 16px; }
+.setting-group + .setting-group { margin-top: 26px; }
+.setting-label { display: block; margin-bottom: 8px; font-size: 14px; font-weight: 600; }
+.segmented-control { display: flex; width: min(100%, 280px); gap: 4px; padding: 4px; border: 1px solid var(--border); border-radius: 8px; background: var(--muted); }
+.segmented-control button { justify-content: center; flex: 1; gap: 7px; padding: 8px 12px; border: 0; border-radius: 6px; background: transparent; color: var(--muted-foreground); cursor: pointer; }
+.segmented-control button.selected { background: var(--background); color: var(--foreground); box-shadow: 0 1px 3px rgb(0 0 0 / 12%); }
+.color-options { display: flex; flex-wrap: wrap; gap: 14px; }
+.color-swatch { display: grid; place-items: center; width: 40px; height: 40px; border: 0; border-radius: 50%; color: white; cursor: pointer; outline: 2px solid transparent; outline-offset: 3px; }
+.color-swatch.selected { outline-color: var(--foreground); }
+
+@media (max-width: 720px) {
+  .app-sidebar { width: 220px; }
+  .app-header { padding: 0 14px; }
+  .settings-page { padding: 24px 16px; }
+}
+
+@media (max-width: 560px) {
+  .app-sidebar { display: none; }
+  .app-header { gap: 8px; }
+  .settings-card { padding: 18px; }
+}

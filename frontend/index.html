@@ -4,7 +4,11 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>frontend</title>
+    <title>Private NoteApp</title>
+    <script>
+      const savedTheme = localStorage.getItem('app_theme_v2');
+      if (savedTheme === 'dark') document.documentElement.classList.add('dark');
+    </script>
   </head>
   <body>
     <div id="root"></div>
