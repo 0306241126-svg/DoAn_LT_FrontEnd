@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import topicService from '../../services/topicService';
+import { useTheme } from '../../context/ThemeContext';
 import Header from './Header';
 import Sidebar from './Sidebar';
 
@@ -17,8 +18,7 @@ function MainLayout({ children }) {
   const [activeTopic, setActiveTopic] = useState(fallbackTopics[0].slug);
   const [searchValue, setSearchValue] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  // Khôi phục theme người dùng đã chọn từ localStorage khi mở lại ứng dụng.
-  const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
+  const { theme, toggleTheme } = useTheme();
 
   // Kết nối MainLayout với topicService để lấy danh sách chủ đề từ backend.
   useEffect(() => {
@@ -37,12 +37,6 @@ function MainLayout({ children }) {
     };
   }, []);
 
-  // Đồng bộ state theme với class dark của document và localStorage.
-  useEffect(() => {
-    document.documentElement.classList.toggle('dark', theme === 'dark');
-    localStorage.setItem('theme', theme);
-  }, [theme]);
-
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* Sidebar nhận danh sách topic và callback cập nhật activeTopic. */}
@@ -59,7 +53,7 @@ function MainLayout({ children }) {
           searchValue={searchValue}
           onSearchChange={setSearchValue}
           theme={theme}
-          onToggleTheme={() => setTheme((currentTheme) => (currentTheme === 'dark' ? 'light' : 'dark'))}
+          onToggleTheme={toggleTheme}
           onMenuOpen={() => setIsSidebarOpen(true)}
         />
         {/* children là vùng nội dung thay đổi được truyền từ App hoặc các page khác. */}

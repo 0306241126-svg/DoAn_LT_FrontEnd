@@ -44,7 +44,7 @@ function NoteFormFields({ note, onClose, onSubmit }) {
             <X size={20} aria-hidden="true" />
           </button>
         </div>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form noValidate onSubmit={handleSubmit} className="space-y-4">
           {/* NoteFormModal nối Input dùng chung với state title và lỗi validation. */}
           <Input
             label="Tiêu đề"
@@ -86,12 +86,8 @@ function NoteFormFields({ note, onClose, onSubmit }) {
 function NoteFormModal({ isOpen, note, onClose, onSubmit }) {
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="presentation">
-      {/* key giúp form nhận lại dữ liệu mới khi chuyển giữa tạo mới và chỉnh sửa note. */}
-      <NoteFormFields key={note?.id || 'new'} note={note} onClose={onClose} onSubmit={onSubmit} />
-    </div>
-  );
+  // key giúp form nhận lại dữ liệu mới khi chuyển giữa tạo mới và chỉnh sửa note.
+  return <NoteFormFields key={note?.id || 'new'} note={note} onClose={onClose} onSubmit={onSubmit} />;
 }
 
 export default NoteFormModal;
