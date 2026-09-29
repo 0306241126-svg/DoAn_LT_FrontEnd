@@ -1,41 +1,15 @@
 import { useEffect, useState } from 'react';
-import topicService from '../../services/topicService';
+import { useNotes } from '../../context/NoteContext';
 import Header from './Header';
 import Sidebar from './Sidebar';
 
-// Topic dự phòng giúp Sidebar vẫn có nội dung khi backend chưa chạy hoặc chưa trả dữ liệu.
-const fallbackTopics = [
-  { name: 'Học tập', slug: 'hoc-tap' },
-  { name: 'Công việc', slug: 'cong-viec' },
-  { name: 'Cá nhân', slug: 'ca-nhan' },
-];
-
 // MainLayout là điểm nối chung giữa Sidebar, Header và nội dung thay đổi của từng màn hình.
 function MainLayout({ children }) {
-  // Các state dưới đây được truyền xuống Header/Sidebar để quản lý layout tập trung.
-  const [topics, setTopics] = useState(fallbackTopics);
-  const [activeTopic, setActiveTopic] = useState(fallbackTopics[0].slug);
+  const { topics, activeTopic, setActiveTopic } = useNotes();
   const [searchValue, setSearchValue] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   // Khôi phục theme người dùng đã chọn từ localStorage khi mở lại ứng dụng.
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
-
-  // Kết nối MainLayout với topicService để lấy danh sách chủ đề từ backend.
-  useEffect(() => {
-    let isMounted = true;
-
-    // Nếu backend có dữ liệu, thay thế danh sách fallback và chọn topic đầu tiên.
-    topicService.getTopics().then((loadedTopics) => {
-      if (isMounted && loadedTopics.length > 0) {
-        setTopics(loadedTopics);
-        setActiveTopic(loadedTopics[0].slug);
-      }
-    });
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
 
   // Đồng bộ state theme với class dark của document và localStorage.
   useEffect(() => {
