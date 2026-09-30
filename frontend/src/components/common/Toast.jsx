@@ -25,11 +25,11 @@ function Toast({ message, type = 'info', duration = 3000, onClose, className = '
     info: 'border-blue-200 bg-blue-50 text-blue-800',
   };
 
-  // Toast được căn giữa bằng left-1/2 và -translate-x-1/2, z-50 để nằm trên nội dung.
+  // Toast luôn nổi trên modal và nội dung, đồng thời được căn giữa ở mép trên màn hình.
   return (
     <div
       role="alert"
-      className={`fixed left-1/2 top-6 z-50 w-[calc(100vw-2rem)] max-w-md -translate-x-1/2 rounded-lg border px-4 py-3 text-center shadow-lg ${typeClasses[type] || typeClasses.info} ${className}`}
+      className={`fixed left-1/2 top-6 z-[100] w-[calc(100vw-2rem)] max-w-md -translate-x-1/2 rounded-lg border px-4 py-3 text-center shadow-lg ${typeClasses[type] || typeClasses.info} ${className}`}
     >
       <span>{message}</span>
       {/* Nút đóng được render khi component cha truyền callback onClose. */}

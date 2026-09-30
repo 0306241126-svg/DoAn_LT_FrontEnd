@@ -1,4 +1,4 @@
-import { useId } from 'react';
+import { useId, useState } from 'react';
 
 // Component ô nhập liệu dùng chung, tự hiển thị lỗi cho trường bắt buộc bị bỏ trống.
 function Input({
@@ -9,6 +9,7 @@ function Input({
   className = '',
   containerClassName = '',
   onBlur,
+  onChange,
   value,
   defaultValue,
   ...props
@@ -16,15 +17,20 @@ function Input({
   // Tạo id tự động khi màn hình không truyền id, giúp label liên kết đúng với input.
   const generatedId = useId();
   const inputId = id || generatedId;
-  // Ưu tiên value controlled; nếu không có thì dùng defaultValue để kiểm tra ban đầu.
-  const valueToValidate = value !== undefined ? value : defaultValue;
+  // Theo dõi giá trị uncontrolled để trạng thái lỗi cũng cập nhật khi người dùng nhập.
+  const [uncontrolledValue, setUncontrolledValue] = useState(defaultValue ?? '');
+  const valueToValidate = value !== undefined ? value : uncontrolledValue;
   const requiredError =
-    required && (valueToValidate === undefined || String(valueToValidate).trim() === '')
+    required && (valueToValidate == null || String(valueToValidate).trim() === '')
       ? 'Trường này không được để trống.'
       : '';
   // Lỗi truyền từ component cha được ưu tiên hơn lỗi required mặc định.
   const displayError = error || requiredError;
   const describedBy = displayError ? `${inputId}-error` : undefined;
+  const handleChange = (event) => {
+    if (value === undefined) setUncontrolledValue(event.target.value);
+    onChange?.(event);
+  };
 
   return (
     <div className={`w-full ${containerClassName}`}>
@@ -43,6 +49,7 @@ function Input({
         aria-invalid={Boolean(displayError)}
         aria-describedby={describedBy}
         onBlur={onBlur}
+        onChange={handleChange}
         className={`w-full rounded-lg border bg-background px-3 py-2 text-foreground outline-none transition focus:ring-2 focus:ring-(--color-primary) ${
           displayError ? 'border-red-500 focus:ring-red-500' : 'border-border'
         } ${className}`}
