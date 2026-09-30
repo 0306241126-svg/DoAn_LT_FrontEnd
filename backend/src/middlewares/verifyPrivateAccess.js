@@ -29,7 +29,7 @@ function verifyPrivateAccess(req, res, next) {
   // 4. Đối chiếu token với phiên đã được tạo khi unlock
   const username = sessionTokens.get(token);
   if (!username) {
-    return res.status(403).json({
+    return res.status(401).json({
       message: 'Token không hợp lệ hoặc đã hết hạn.'
     });
   }

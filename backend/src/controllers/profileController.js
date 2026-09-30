@@ -19,7 +19,8 @@ const profilePath = path.join(DATA_DIR, 'users', DEFAULT_USERNAME, 'profile.json
 function withoutPassword(profile) {
   const safeProfile = { ...profile }; // Tách bản sao để không ảnh hưởng dữ liệu gốc
   delete safeProfile.password;        // Xóa mật khẩu tài khoản
-  delete safeProfile.privatePassword; // Xóa mật khẩu vùng riêng tư
+  delete safeProfile.privatePassword;
+  delete safeProfile.privatePasswordHash; // Xóa hash mật khẩu vùng riêng tư
   return safeProfile;
 }
 

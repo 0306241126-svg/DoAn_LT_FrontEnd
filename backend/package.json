@@ -5,7 +5,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "npm run test:constants && npm run test:utils",
+    "test:constants": "node tests/test_constants.js",
     "test:utils": "node tests/test_utils.js"
   },
   "keywords": [],

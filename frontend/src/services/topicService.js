@@ -5,10 +5,14 @@ export const topicService = {
   getTopics: async () => {
     try {
       const data = await api.get('/topics');
-      return data?.topics || data || [];
+      const topics = Array.isArray(data) ? data : data?.topics;
+      if (!Array.isArray(topics)) {
+        throw new Error('Phản hồi danh sách chủ đề không hợp lệ.');
+      }
+      return topics;
     } catch (error) {
       console.error('Lỗi khi tải danh sách chủ đề:', error?.response?.data || error?.message);
-      return [];
+      throw error;
     }
   },
 
@@ -16,7 +20,11 @@ export const topicService = {
   createTopic: async (name) => {
     try {
       const data = await api.post('/topics', { name });
-      return data;
+      const topic = data?.data || data;
+      if (!topic || typeof topic.name !== 'string' || typeof topic.slug !== 'string') {
+        throw new Error('Phản hồi tạo chủ đề không hợp lệ.');
+      }
+      return topic;
     } catch (error) {
       console.error('Lỗi khi tạo chủ đề:', error?.response?.data || error?.message);
       throw error;
@@ -27,7 +35,11 @@ export const topicService = {
   updateTopic: async (slug, newName) => {
     try {
       const data = await api.put(`/topics/${slug}`, { name: newName });
-      return data;
+      const topic = data?.data || data;
+      if (!topic || typeof topic.name !== 'string' || typeof topic.slug !== 'string') {
+        throw new Error('Phản hồi cập nhật chủ đề không hợp lệ.');
+      }
+      return topic;
     } catch (error) {
       console.error('Lỗi khi sửa chủ đề:', error?.response?.data || error?.message);
       throw error;

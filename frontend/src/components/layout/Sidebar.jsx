@@ -1,7 +1,10 @@
-import { BookOpen, X } from 'lucide-react';
+import { BookOpen, LockKeyhole, Settings, X } from 'lucide-react';
+import { NavLink, useNavigate } from 'react-router-dom';
 
 // Sidebar hiển thị danh sách topic và điều khiển topic đang được chọn.
 function Sidebar({ topics, activeTopic, onSelectTopic, isOpen, onClose }) {
+  const navigate = useNavigate();
+
   return (
     <>
       {/* Overlay chỉ xuất hiện khi Sidebar mở trên mobile và gọi onClose khi người dùng bấm ra ngoài. */}
@@ -57,6 +60,7 @@ function Sidebar({ topics, activeTopic, onSelectTopic, isOpen, onClose }) {
                   // Khi chọn topic, cập nhật state ở MainLayout và đóng drawer mobile.
                   onClick={() => {
                     onSelectTopic(topic.slug);
+                    navigate('/');
                     onClose();
                   }}
                   className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition-colors ${
@@ -70,6 +74,28 @@ function Sidebar({ topics, activeTopic, onSelectTopic, isOpen, onClose }) {
                 </button>
               );
             })}
+          </div>
+          <div className="mt-6 space-y-1 border-t border-border pt-4">
+            <NavLink
+              to="/private"
+              onClick={onClose}
+              className={({ isActive: isRouteActive }) => `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors ${
+                isRouteActive ? 'bg-(--color-primary) font-semibold text-white' : 'text-sidebar-foreground hover:bg-muted'
+              }`}
+            >
+              <LockKeyhole size={17} aria-hidden="true" />
+              Vùng riêng tư
+            </NavLink>
+            <NavLink
+              to="/settings"
+              onClick={onClose}
+              className={({ isActive: isRouteActive }) => `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors ${
+                isRouteActive ? 'bg-(--color-primary) font-semibold text-white' : 'text-sidebar-foreground hover:bg-muted'
+              }`}
+            >
+              <Settings size={17} aria-hidden="true" />
+              Cài đặt
+            </NavLink>
           </div>
         </nav>
 
