@@ -6,10 +6,14 @@ export const noteService = {
     if (!topicSlug) return [];
     try {
       const data = await api.get(`/notes/${topicSlug}`);
-      return data?.notes || data || [];
+      const notes = Array.isArray(data) ? data : data?.notes;
+      if (!Array.isArray(notes)) {
+        throw new Error(`Phản hồi danh sách ghi chú của chủ đề ${topicSlug} không hợp lệ.`);
+      }
+      return notes;
     } catch (error) {
       console.error(`Lỗi khi tải ghi chú của chủ đề ${topicSlug}:`, error?.response?.data || error?.message);
-      return [];
+      throw error;
     }
   },
 

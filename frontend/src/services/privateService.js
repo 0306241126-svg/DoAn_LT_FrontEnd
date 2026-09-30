@@ -1,5 +1,18 @@
 import api from './api';
 
+function unwrapPrivateNote(response, action) {
+  if (
+    response?.success !== true ||
+    !response.data ||
+    typeof response.data !== 'object' ||
+    Array.isArray(response.data)
+  ) {
+    throw new Error(`Phản hồi ${action} ghi chú riêng tư không hợp lệ.`);
+  }
+
+  return response.data;
+}
+
 export const privateService = {
   // Mở khóa vùng riêng tư bằng mật khẩu (nhận về token)
   unlock: async (password) => {
@@ -41,10 +54,14 @@ export const privateService = {
   getPrivateNotes: async () => {
     try {
       const data = await api.get('/private/notes');
-      return data?.notes || data || [];
+      const notes = Array.isArray(data) ? data : data?.notes;
+      if (!Array.isArray(notes)) {
+        throw new Error('Phản hồi danh sách ghi chú riêng tư không hợp lệ.');
+      }
+      return notes;
     } catch (error) {
       console.error('Lỗi lấy ghi chú bảo mật:', error?.response?.data || error?.message);
-      return [];
+      throw error;
     }
   },
 
@@ -52,7 +69,7 @@ export const privateService = {
   createPrivateNote: async (noteData) => {
     try {
       const data = await api.post('/private/notes', noteData);
-      return data;
+      return unwrapPrivateNote(data, 'tạo');
     } catch (error) {
       console.error('Lỗi tạo ghi chú bảo mật:', error?.response?.data || error?.message);
       throw error;
@@ -63,7 +80,7 @@ export const privateService = {
   updatePrivateNote: async (noteId, noteData) => {
     try {
       const data = await api.put(`/private/notes/${noteId}`, noteData);
-      return data;
+      return unwrapPrivateNote(data, 'cập nhật');
     } catch (error) {
       console.error('Lỗi cập nhật ghi chú bảo mật:', error?.response?.data || error?.message);
       throw error;

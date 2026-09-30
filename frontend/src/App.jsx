@@ -1,4 +1,13 @@
-import React from 'react';
-import { Check, Moon, NotebookPen, Palette, Search, Sun } from 'lucide-react';
-import { ThemeProvider, THEME_COLORS, useTheme } from './context/ThemeContext';
-import './App.css';
+import { Route, Routes } from 'react-router-dom';
+import MainLayout from './components/layout/MainLayout';
+import NotesPage from './pages/NotesPage';
+import PrivateNotesPage from './pages/PrivateNotesPage';
+import SettingsPage from './pages/SettingsPage';
+
+
+
+function App() {
+
+}
+
+export default App;
