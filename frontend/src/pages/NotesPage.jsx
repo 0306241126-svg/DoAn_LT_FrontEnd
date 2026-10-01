@@ -12,17 +12,45 @@ import Toast from '../components/common/Toast';
 
 // Ghép chủ đề với ID để tránh trùng ID khi ghim ghi chú từ nhiều chủ đề.
 const getPinKey = (note) => `${note.topicSlug || 'unknown'}:${note.id}`;
-// Tách dữ liệu ghim theo tài khoản đang dùng trên cùng trình duyệt.
-const PIN_STORAGE_KEY = `pinnedNotes:${localStorage.getItem('app_username') || 'default_user'}`;
 const EMPTY_NOTES = [];
 
+// Lấy key storage sau khi client render (tránh lỗi SSR/test)
+const getPinStorageKey = () => {
+	if (typeof window === 'undefined') return null;
+	return `pinnedNotes:${localStorage.getItem('app_username') || 'default_user'}`;
+};
+
+// Dùng key cũ nếu key mới chưa có (migration)
+const getLegacyPinStorageKey = () => {
+	if (typeof window === 'undefined') return null;
+	return `pinned-notes:${localStorage.getItem('app_username') || 'default_user'}`;
+};
+
 function loadPinnedNotes(storageKey) {
+	if (!storageKey) return new Set();
 	try {
 		const storedNotes = JSON.parse(localStorage.getItem(storageKey) || '[]');
 		return new Set(Array.isArray(storedNotes) ? storedNotes : []);
 	} catch {
 		// Dữ liệu localStorage hỏng không được làm gián đoạn trang ghi chú.
 		return new Set();
+	}
+}
+
+// Migrate từ key cũ sang key mới nếu cần
+function migratePinnedNotes(newKey, legacyKey) {
+	if (!newKey || !legacyKey) return;
+	try {
+		const newData = localStorage.getItem(newKey);
+		if (!newData) {
+			const legacyData = localStorage.getItem(legacyKey);
+			if (legacyData) {
+				localStorage.setItem(newKey, legacyData);
+				localStorage.removeItem(legacyKey);
+			}
+		}
+	} catch (error) {
+		console.warn('Migration ghim ghi chú bị lỗi:', error);
 	}
 }
 
@@ -46,7 +74,12 @@ export default function NotesPage() {
 	const [reloadKey, setReloadKey] = useState(0);
 	const [viewMode, setViewMode] = useState('grid');
 	const [sortOrder, setSortOrder] = useState('newest');
-	const [pinnedNotes, setPinnedNotes] = useState(() => loadPinnedNotes(PIN_STORAGE_KEY));
+	const [pinnedNotes, setPinnedNotes] = useState(() => {
+		const newKey = getPinStorageKey();
+		const legacyKey = getLegacyPinStorageKey();
+		if (newKey && legacyKey) migratePinnedNotes(newKey, legacyKey);
+		return loadPinnedNotes(newKey);
+	});
 	const [isFormOpen, setIsFormOpen] = useState(false);
 	const [editingNote, setEditingNote] = useState(null);
 	const [viewedNote, setViewedNote] = useState(null);
@@ -55,6 +88,18 @@ export default function NotesPage() {
 	const topicKey = topics.map((topic) => topic.slug).join(',');
 	// Đổi key khi chủ đề hoặc danh sách chủ đề đổi để không hiển thị nhầm dữ liệu cũ.
 	const requestKey = `${activeTopic || ''}:${topicKey}:${reloadKey}`;
+
+	// Lưu ghim vào localStorage mỗi khi thay đổi
+	useEffect(() => {
+		const storageKey = getPinStorageKey();
+		if (storageKey) {
+			try {
+				localStorage.setItem(storageKey, JSON.stringify([...pinnedNotes]));
+			} catch (error) {
+				console.warn('Không thể lưu trạng thái ghim:', error);
+			}
+		}
+	}, [pinnedNotes]);
 
 	useEffect(() => {
 		let isCurrentRequest = true;
@@ -106,10 +151,6 @@ export default function NotesPage() {
 		};
 	}, [activeTopic, topics, topicKey, requestKey]);
 
-	useEffect(() => {
-		localStorage.setItem(PIN_STORAGE_KEY, JSON.stringify([...pinnedNotes]));
-	}, [pinnedNotes]);
-
 	const isLoading = isLoadingTopics || requestState.key !== requestKey;
 	const notes = requestState.key === requestKey ? requestState.notes : EMPTY_NOTES;
 	const loadError = requestState.key === requestKey ? requestState.error : '';
@@ -120,8 +161,13 @@ export default function NotesPage() {
 		const secondPinned = pinnedNotes.has(getPinKey(second));
 		if (firstPinned !== secondPinned) return firstPinned ? -1 : 1;
 
+		// Xử lý an toàn khi title bị thiếu
 		if (sortOrder === 'oldest') return getDateValue(first) - getDateValue(second);
-		if (sortOrder === 'title') return first.title.localeCompare(second.title, 'vi');
+		if (sortOrder === 'title') {
+			const firstTitle = (first.title || '').trim();
+			const secondTitle = (second.title || '').trim();
+			return firstTitle.localeCompare(secondTitle, 'vi', { sensitivity: 'base' });
+		}
 		return getDateValue(second) - getDateValue(first);
 	}), [notes, pinnedNotes, sortOrder]);
 
@@ -131,15 +177,18 @@ export default function NotesPage() {
 
 	const togglePin = useCallback((note) => {
 		const key = getPinKey(note);
-		const willPin = !pinnedNotes.has(key);
 		setPinnedNotes((current) => {
 			const next = new Set(current);
+			const willPin = !next.has(key);
 			if (next.has(key)) next.delete(key);
 			else next.add(key);
+			setToast({
+				message: willPin ? 'Đã ghim ghi chú.' : 'Đã bỏ ghim ghi chú.',
+				type: 'success',
+			});
 			return next;
 		});
-		setToast({ message: willPin ? 'Đã ghim ghi chú.' : 'Đã bỏ ghim ghi chú.', type: 'success' });
-	}, [pinnedNotes]);
+	}, []);
 
 	const closeForm = useCallback(() => {
 		setIsFormOpen(false);
@@ -174,6 +223,7 @@ export default function NotesPage() {
 						)),
 					});
 			setToast({ message: 'Đã cập nhật ghi chú.', type: 'success' });
+			closeForm();
 			return;
 		}
 
@@ -182,7 +232,8 @@ export default function NotesPage() {
 			? current
 			: { ...current, notes: [...current.notes, { ...createdNote, topicSlug: targetTopic }] });
 		setToast({ message: 'Đã tạo ghi chú.', type: 'success' });
-	}, [activeTopic, editingNote, requestKey]);
+		closeForm();
+	}, [activeTopic, editingNote, requestKey, closeForm]);
 
 	const deleteNote = useCallback(async (noteId, topicSlug) => {
 		const note = notes.find((item) => item.id === noteId && item.topicSlug === topicSlug);
@@ -192,12 +243,12 @@ export default function NotesPage() {
 		const isConfirmed = confirm
 			? await confirm({
 					title: 'Xóa ghi chú',
-					message: `Bạn có chắc muốn xóa ghi chú “${note.title}” không?`,
+					message: `Bạn có chắc muốn xóa ghi chú "${note.title}" không?`,
 					confirmText: 'Xóa ghi chú',
 					cancelText: 'Giữ lại',
 					type: 'danger',
 				})
-			: window.confirm(`Bạn có chắc muốn xóa ghi chú “${note.title}” không?`);
+			: window.confirm(`Bạn có chắc muốn xóa ghi chú "${note.title}" không?`);
 		if (!isConfirmed) return;
 
 		try {
@@ -229,10 +280,18 @@ export default function NotesPage() {
 		? sortedNotes.findIndex((note) => note.id === currentViewedNote.id && note.topicSlug === currentViewedNote.topicSlug)
 		: -1;
 
+	// Điều hướng chỉ trong cùng topic để giữ UX nhất quán
+	const notesInCurrentTopic = sortedNotes.filter((note) => (
+		currentViewedNote ? note.topicSlug === currentViewedNote.topicSlug : false
+	));
+	const noteIndexInTopic = notesInCurrentTopic.findIndex(
+		(note) => currentViewedNote && note.id === currentViewedNote.id
+	);
+
 	const navigateViewedNote = useCallback((offset) => {
-		const nextNote = sortedNotes[viewedNoteIndex + offset];
+		const nextNote = notesInCurrentTopic[noteIndexInTopic + offset];
 		if (nextNote) setViewedNote(nextNote);
-	}, [sortedNotes, viewedNoteIndex]);
+	}, [notesInCurrentTopic, noteIndexInTopic]);
 
 	return (
 		<section className="mx-auto w-full max-w-7xl space-y-6" aria-labelledby="notes-heading">
@@ -368,8 +427,8 @@ export default function NotesPage() {
 					onEdit={openEditForm}
 					onDelete={deleteNote}
 					onNavigate={navigateViewedNote}
-					canGoPrevious={viewedNoteIndex > 0}
-					canGoNext={viewedNoteIndex >= 0 && viewedNoteIndex < sortedNotes.length - 1}
+					canGoPrevious={noteIndexInTopic > 0}
+					canGoNext={noteIndexInTopic >= 0 && noteIndexInTopic < notesInCurrentTopic.length - 1}
 				/>
 			)}
 
