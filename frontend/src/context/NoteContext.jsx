@@ -2,11 +2,10 @@ import React, { createContext, useCallback, useContext, useEffect, useState } fr
 import { topicService } from '../services/topicService';
 
 const NoteContext = createContext(null);
-export const ALL_TOPICS = 'all';
 
 export function NoteProvider({ children }) {
   const [topics, setTopics] = useState([]);
-  const [activeTopic, setActiveTopic] = useState(ALL_TOPICS);
+  const [activeTopic, setActiveTopic] = useState('');
   const [loading, setLoading] = useState(true);
   const [topicError, setTopicError] = useState('');
 
@@ -19,9 +18,9 @@ export function NoteProvider({ children }) {
       }
       setTopics(loadedTopics);
       setActiveTopic((currentTopic) => (
-        currentTopic === ALL_TOPICS || loadedTopics.some((topic) => topic.slug === currentTopic)
+        loadedTopics.some((topic) => topic.slug === currentTopic)
           ? currentTopic
-          : ALL_TOPICS
+          : loadedTopics[0]?.slug || ''
       ));
       setTopicError('');
     } catch (error) {
@@ -55,14 +54,17 @@ export function NoteProvider({ children }) {
   const removeTopic = useCallback(async (slug) => {
     try {
       await topicService.deleteTopic(slug);
-      setTopics((currentTopics) => currentTopics.filter((topic) => topic.slug !== slug));
-      setActiveTopic((currentTopic) => currentTopic === slug ? ALL_TOPICS : currentTopic);
+      const remainingTopics = topics.filter((topic) => topic.slug !== slug);
+      setTopics(remainingTopics);
+      setActiveTopic((currentTopic) => (
+        currentTopic === slug ? remainingTopics[0]?.slug || '' : currentTopic
+      ));
       setTopicError('');
     } catch (error) {
       setTopicError(error?.message || 'Không thể xóa chủ đề.');
       throw error;
     }
-  }, []);
+  }, [topics]);
 
   return (
     <NoteContext.Provider

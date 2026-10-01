@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Plus } from 'lucide-react';
 import { useConfirm } from '../context/ConfirmContext';
-import { ALL_TOPICS, useNotes } from '../context/NoteContext';
+import { useNotes } from '../context/NoteContext';
 import { noteService } from '../services/noteService';
 import Button from '../components/common/Button';
 import LoadingSpinner from '../components/common/LoadingSpinner';
@@ -26,16 +26,14 @@ export default function NotesPage({ searchValue = '' }) {
     setIsLoadingNotes(true);
     setLoadError('');
     try {
-      const selectedTopics = activeTopic === ALL_TOPICS
-        ? topics
-        : topics.filter((topic) => topic.slug === activeTopic);
-      const loadedNotes = activeTopic === ALL_TOPICS
-        ? await noteService.getAllNotes(selectedTopics)
-        : (await noteService.getNotes(activeTopic)).map((note) => ({
+      const selectedTopic = topics.find((topic) => topic.slug === activeTopic);
+      const loadedNotes = activeTopic
+        ? (await noteService.getNotes(activeTopic)).map((note) => ({
             ...note,
             topicSlug: activeTopic,
-            topicName: selectedTopics[0]?.name,
-          }));
+            topicName: selectedTopic?.name,
+          }))
+        : [];
       setNotes(loadedNotes);
     } catch (error) {
       setLoadError(error?.message || 'Không thể tải danh sách ghi chú.');
@@ -61,7 +59,7 @@ export default function NotesPage({ searchValue = '' }) {
   const handleSaveNote = async (noteData) => {
     const topicSlug = noteData.topicSlug
       || editingNote?.topicSlug
-      || (activeTopic === ALL_TOPICS ? topics[0]?.slug : activeTopic);
+      || activeTopic;
     if (!topicSlug) throw new Error('Vui lòng tạo chủ đề trước khi thêm ghi chú.');
 
     if (editingNote) {
@@ -111,9 +109,7 @@ export default function NotesPage({ searchValue = '' }) {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-xs font-bold uppercase tracking-wider text-primary">
-            {activeTopic === ALL_TOPICS
-              ? 'Tất cả chủ đề'
-              : topics.find((topic) => topic.slug === activeTopic)?.name}
+            {topics.find((topic) => topic.slug === activeTopic)?.name || 'Chủ đề'}
           </p>
           <h1 className="mt-1 text-2xl font-bold text-slate-900 dark:text-slate-100">Ghi chú</h1>
         </div>
@@ -147,8 +143,7 @@ export default function NotesPage({ searchValue = '' }) {
               onOpen={setViewingNote}
               onEdit={openEditForm}
               onDelete={handleDeleteNote}
-              topicName={note.topicName}
-              showTopicBadge={activeTopic === ALL_TOPICS}
+              topicName={topics.find((topic) => topic.slug === note.topicSlug)?.name}
             />
           ))}
         </div>
@@ -167,8 +162,7 @@ export default function NotesPage({ searchValue = '' }) {
         }}
         onSave={handleSaveNote}
         topics={topics}
-        showTopicSelector={activeTopic === ALL_TOPICS && !editingNote}
-        defaultTopicSlug={activeTopic === ALL_TOPICS ? topics[0]?.slug || '' : activeTopic}
+        defaultTopicSlug={activeTopic}
       />
 
       {viewingNote && (

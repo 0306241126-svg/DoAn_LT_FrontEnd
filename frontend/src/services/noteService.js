@@ -24,24 +24,6 @@ export const noteService = {
 
   getNotesByTopic: async (topicSlug) => noteService.getNotes(topicSlug),
 
-  getAllNotes: async (topics, search = '') => {
-    const notesByTopic = await Promise.all(
-      topics.map(async (topic) => {
-        const notes = await noteService.getNotes(topic.slug, search);
-        return notes.map((note) => ({
-          ...note,
-          topicSlug: topic.slug,
-          topicName: topic.name,
-        }));
-      }),
-    );
-
-    return notesByTopic.flat().sort(
-      (a, b) => new Date(b.updatedAt || b.createdAt || 0).getTime()
-        - new Date(a.updatedAt || a.createdAt || 0).getTime(),
-    );
-  },
-
   getNoteById: async (topicSlug, id) => api.get(`/notes/${topicSlug}/${id}`),
 
   createNote: async (topicSlug, noteData) => api.post(`/notes/${topicSlug}`, noteData),

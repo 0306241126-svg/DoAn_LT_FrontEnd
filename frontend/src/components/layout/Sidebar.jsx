@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Edit3, Plus, Folder, Lock, Unlock, Settings, ChevronRight, Trash2, X, Shield, Layers } from 'lucide-react';
+import { Edit3, Plus, Folder, Lock, Unlock, Settings, ChevronRight, Trash2, X, Shield } from 'lucide-react';
 import { useNotes } from '../../context/NoteContext';
 import { useAuthPrivate } from '../../context/AuthPrivateContext';
 import { useConfirm } from '../../context/ConfirmContext';
@@ -158,26 +158,6 @@ export default function Sidebar({ isOpen, onClose, onOpenNewTopicModal, isNewTop
             </div>
 
             <div className="space-y-1 overflow-y-auto flex-1 pr-1 custom-scrollbar">
-              {/* Chọn "all" để hiển thị ghi chú thuộc mọi chủ đề; kiểu dáng đổi theo trạng thái đang chọn. */}
-              <div
-                onClick={() => handleSelectTopic('all')}
-                className={`group flex items-center justify-between px-3 py-2.5 rounded-xl border text-xs transition select-none cursor-pointer ${
-                  activeTopic === 'all'
-                    ? 'bg-primary/10 text-primary border-primary/20 dark:bg-primary/20 dark:text-primary-300 font-semibold'
-                    : 'bg-slate-50/80 dark:bg-slate-800/40 border-slate-200/60 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100/70 dark:hover:bg-slate-800/60'
-                }`}
-              >
-                <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                  <Layers
-                    size={15}
-                    className={`shrink-0 transition-colors ${
-                      activeTopic === 'all' ? 'text-primary' : 'text-slate-400 group-hover:text-slate-500'
-                    }`}
-                  />
-                  <span className="truncate">Tất cả chủ đề</span>
-                </div>
-              </div>
-
               {/* Danh sách từng chủ đề riêng */}
               {topics.map((topic) => {
                 const isActive = activeTopic === topic.slug;
