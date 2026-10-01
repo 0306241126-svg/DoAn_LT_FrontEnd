@@ -1,13 +1,18 @@
 {
-  "displayName": "Hoài Linh",
+  "displayName": "Linh",
   "preferences": {
-    "theme": "light",
-    "primaryColor": "#8b5cf6"
+    "theme": "dark",
+    "primaryColor": "#f43f5e"
   },
   "topics": [
     {
       "name": "Học tập",
       "slug": "hoc-tap"
+    },
+    {
+      "slug": "lap-trinh",
+      "name": "Lập trình"
     }
-  ]
+  ],
+  "privatePasswordHash": "$2b$10$cJucCZsaXGmP.e0CfZBtuOSDyutlUdHWyePQ1J5MDnFGed/m1o6vq"
 }
