@@ -1,37 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
-import { useAuthPrivate } from '../../context/AuthPrivateContext';
 import Input from '../common/Input';
 import Button from '../common/Button';
 import { useNotes } from '../../context/NoteContext';
 
 export default function MainLayout({ searchValue, onSearchChange }) {
-  const { isUnlocked } = useAuthPrivate();
   const { addTopic } = useNotes();
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showTopicModal, setShowTopicModal] = useState(false);
   const [newTopicName, setNewTopicName] = useState('');
-  const [remainingTime, setRemainingTime] = useState('15:00');
-
-  useEffect(() => {
-    if (!isUnlocked) return;
-    let secondsLeft = 15 * 60;
-    const interval = setInterval(() => {
-      secondsLeft -= 1;
-      if (secondsLeft <= 0) {
-        clearInterval(interval);
-      } else {
-        const m = String(Math.floor(secondsLeft / 60)).padStart(2, '0');
-        const s = String(secondsLeft % 60).padStart(2, '0');
-        setRemainingTime(`${m}:${s}`);
-      }
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [isUnlocked]);
-
   const handleCreateTopic = async (e) => {
     e.preventDefault();
     if (!newTopicName.trim()) return;
@@ -59,7 +39,6 @@ export default function MainLayout({ searchValue, onSearchChange }) {
           searchValue={searchValue}
           onSearchChange={onSearchChange}
           onOpenMobileMenu={() => setIsMobileMenuOpen(true)}
-          remainingTime={remainingTime}
         />
 
         {/* Nội dung trang co giãn */}
