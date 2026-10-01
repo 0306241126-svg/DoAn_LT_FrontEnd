@@ -59,4 +59,20 @@ export const noteService = {
   deleteNote: async (topicSlug, id) => {
     return await api.delete(`/notes/${topicSlug}/${id}`);
   },
+
+  getTrashNotes: async () => {
+    return await api.get('/notes/trash');
+  },
+
+  restoreNote: async (topicSlug, id) => {
+    return await api.post(`/notes/trash/${topicSlug}/${id}/restore`);
+  },
+
+  permanentlyDeleteNote: async (topicSlug, id) => {
+    return await api.delete(`/notes/trash/${topicSlug}/${id}/permanent`);
+  },
+
+  emptyTrash: async () => {
+    return await api.delete('/notes/trash');
+  },
 };

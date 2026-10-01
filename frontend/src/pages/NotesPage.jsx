@@ -322,11 +322,6 @@ export default function NotesPage({ searchQuery = '' }) {
 						...current,
 						notes: current.notes.filter((item) => !(item.id === noteId && item.topicSlug === topicSlug)),
 					});
-			setPinnedNotes((current) => {
-				const next = new Set(current);
-				next.delete(getPinKey(note));
-				return next;
-			});
 			setViewedNote((current) => (
 				current?.id === noteId && current?.topicSlug === topicSlug ? null : current
 			));

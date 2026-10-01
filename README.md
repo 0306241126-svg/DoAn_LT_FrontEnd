@@ -23,6 +23,16 @@
 * **Hệ thống lưu trữ tệp cục bộ an toàn (Local File Storage):** Lưu trữ dữ liệu dạng JSON, áp dụng cơ chế ghi an toàn (Atomic Write) chống lỗi mất dữ liệu khi xảy ra ngắt quãng tiến trình.
 * **Tùy biến giao diện (Theming System):** Chuyển đổi linh hoạt chế độ Sáng/Tối (Dark Mode) và bộ chọn 7 màu chủ đạo, lưu trữ trạng thái chống giật màn hình khi tải lại trang.
 
+### Ghi chú lưu trữ: Chức năng Thùng rác
+
+* Xóa ghi chú/chủ đề là xóa mềm. Ghi chú lưu `deletedAt` trong file chủ đề; chủ đề lưu `deletedAt` trong `profile.json`. Dữ liệu đã xóa không xuất hiện trong danh sách hoạt động.
+* Thùng rác hiển thị ghi chú đã xóa riêng và chủ đề đã xóa như một mục tổng hợp. Khôi phục chủ đề sẽ khôi phục các ghi chú chưa bị xóa riêng; ghi chú đã xóa riêng vẫn ở trong thùng rác.
+* Xóa vĩnh viễn một ghi chú chỉ xóa ghi chú đó. Xóa vĩnh viễn một chủ đề hoặc dọn sạch thùng rác sẽ xóa vĩnh viễn các file ghi chú liên quan.
+* API ghi chú: `GET /api/notes/trash`, `POST /api/notes/trash/:topicSlug/:id/restore`, `DELETE /api/notes/trash/:topicSlug/:id/permanent`, `DELETE /api/notes/trash`.
+* API chủ đề: `POST /api/topics/trash/:topicSlug/restore`, `DELETE /api/topics/trash/:topicSlug/permanent`. `DELETE /api/topics/:topicSlug` chuyển chủ đề vào thùng rác.
+* File triển khai chính: `backend/src/controllers/noteController.js`, `backend/src/controllers/topicController.js`, `backend/src/routes/noteRoutes.js`, `backend/src/routes/topicRoutes.js`, `frontend/src/pages/TrashPage.jsx`, `frontend/src/components/layout/Sidebar.jsx`, `frontend/src/services/noteService.js`, `frontend/src/services/topicService.js`.
+* Regression test: chạy `npm run test:trash --prefix backend`.
+
 ---
 
 ## 3. CẤU TRÚC CÂY THƯ MỤC DỰ ÁN

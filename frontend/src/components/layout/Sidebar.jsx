@@ -15,8 +15,8 @@ export default function Sidebar({ isOpen, onClose, onOpenNewTopicModal, isNewTop
     e.stopPropagation();
     const isOk = await confirm({
       title: 'Xóa chủ đề',
-      message: `Bạn có chắc muốn xóa chủ đề "${topic.name}" cùng tất cả ghi chú bên trong không?`,
-      confirmText: 'Xác nhận xóa',
+      message: `Chủ đề "${topic.name}" và các ghi chú bên trong sẽ được chuyển vào thùng rác, bạn có thể khôi phục sau.`,
+      confirmText: 'Chuyển vào thùng rác',
       cancelText: 'Giữ lại',
       type: 'danger',
     });
@@ -121,6 +121,21 @@ export default function Sidebar({ isOpen, onClose, onOpenNewTopicModal, isNewTop
                 </div>
               </div>
               <ChevronRight size={14} className="opacity-50 shrink-0 group-hover:translate-x-0.5 transition-transform" />
+            </NavLink>
+
+            <NavLink
+              to="/trash"
+              onClick={onClose}
+              className={({ isActive }) =>
+                `flex items-center gap-2.5 px-3 py-2 rounded-xl border text-xs transition-all ${
+                  isActive
+                    ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/30 dark:text-rose-300 dark:border-rose-900/60 font-semibold'
+                    : 'bg-slate-50/80 dark:bg-slate-800/40 border-slate-200/60 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200 dark:hover:bg-rose-950/30 dark:hover:text-rose-300'
+                }`
+              }
+            >
+              <Trash2 size={16} className="shrink-0" />
+              <span>Thùng rác</span>
             </NavLink>
 
             {/* Cài đặt */}

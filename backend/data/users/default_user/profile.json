@@ -1,8 +1,8 @@
 {
-  "displayName": "Linh",
+  "displayName": "Bảo",
   "preferences": {
-    "theme": "dark",
-    "primaryColor": "#f43f5e"
+    "theme": "light",
+    "primaryColor": "#3b82f6"
   },
   "topics": [
     {
@@ -12,6 +12,11 @@
     {
       "slug": "lap-trinh",
       "name": "Lập trình"
+    },
+    {
+      "slug": "aaaaaaaaaaa",
+      "name": "aaaaaaaaaaa",
+      "deletedAt": "2026-10-01T13:22:41.581Z"
     }
   ],
   "privatePasswordHash": "$2b$10$cJucCZsaXGmP.e0CfZBtuOSDyutlUdHWyePQ1J5MDnFGed/m1o6vq"

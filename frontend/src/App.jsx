@@ -8,6 +8,7 @@ import MainLayout from './components/layout/MainLayout';
 import NotesPage from './pages/NotesPage';
 import PrivateNotesPage from './pages/PrivateNotesPage';
 import SettingsPage from './pages/SettingsPage';
+import TrashPage from './pages/TrashPage';
 import { useDebounce } from './hooks/useDebounce';
 
 export default function App() {
@@ -35,6 +36,7 @@ export default function App() {
                   element={<PrivateNotesPage searchQuery={debouncedSearch} />}
                 />
                 <Route path="settings" element={<SettingsPage />} />
+                <Route path="trash" element={<TrashPage searchQuery={debouncedSearch} />} />
               </Route>
             </Routes>
           </ConfirmProvider>
