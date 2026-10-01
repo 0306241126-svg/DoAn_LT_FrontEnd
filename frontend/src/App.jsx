@@ -15,8 +15,31 @@ export default function App() {
   const debouncedSearch = useDebounce(searchInput, 400);
 
   return (
-    <>
-    
-    </>
+    <ThemeProvider>
+      <NoteProvider>
+        <AuthPrivateProvider>
+          <ConfirmProvider>
+            <Routes>
+              <Route
+                path="/"
+                element={
+                  <MainLayout
+                    searchValue={searchInput}
+                    onSearchChange={setSearchInput}
+                  />
+                }
+              >
+                <Route index element={<NotesPage searchQuery={debouncedSearch} />} />
+                <Route
+                  path="private"
+                  element={<PrivateNotesPage searchQuery={debouncedSearch} />}
+                />
+                <Route path="settings" element={<SettingsPage />} />
+              </Route>
+            </Routes>
+          </ConfirmProvider>
+        </AuthPrivateProvider>
+      </NoteProvider>
+    </ThemeProvider>
   );
 }

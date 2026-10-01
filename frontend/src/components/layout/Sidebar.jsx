@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Edit3, Plus, Folder, Lock, Unlock, Settings, ChevronRight, Trash2, X, Shield, Layers } from 'lucide-react';
+import { Plus, Folder, Lock, Unlock, Settings, ChevronRight, Trash2, X, Shield, Layers } from 'lucide-react';
 import { useNotes } from '../../context/NoteContext';
 import { useAuthPrivate } from '../../context/AuthPrivateContext';
 import { useConfirm } from '../../context/ConfirmContext';
@@ -26,7 +26,7 @@ export default function Sidebar({ isOpen, onClose, onOpenNewTopicModal, isNewTop
     }
   };
 
-  // Chọn chủ đề cần xem, quay về trang ghi chú và đóng Sidebar trên thiết bị di động.
+  // Chọn chủ đề cần xem, quay về trang ghi chú và đóng Sidebar trên thiết bị di động
   const handleSelectTopic = (slug) => {
     setActiveTopic(slug);
     navigate('/');
@@ -50,24 +50,36 @@ export default function Sidebar({ isOpen, onClose, onOpenNewTopicModal, isNewTop
         }`}
       >
         <div className="p-4 flex flex-col flex-1 min-h-0">
-          {/* Header Sidebar */}
-          <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-100 dark:border-slate-800/80 shrink-0">
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-primary to-indigo-600 flex items-center justify-center text-white shadow-md shadow-primary/20 shrink-0">
-                <Edit3 size={18} />
+          
+          {/* Header Sidebar: Thiết kế hiện đại, chống đen ruột ảnh ở Dark Mode */}
+          <div className="relative mb-3 flex shrink-0 items-center justify-between border-b border-slate-100 pb-3 dark:border-slate-800/80">
+            <div className="flex items-center gap-2.5 min-w-0">
+              {/* Box chứa Logo - Luôn cố định nền trắng để bảo vệ file PNG đã xóa nền */}
+              <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white p-1 shadow-sm ring-1 ring-slate-200/70 dark:ring-slate-700/80">
+                <img
+                  src="/images/1790822702152_3203883919812151739_g5520636365658538576_00d44b88ceb743c678b5b9bce68e51ae-removebg-preview.png"
+                  alt="Minh họa sổ tay"
+                  className="h-full w-full object-contain"
+                />
               </div>
+
+              {/* Tên ứng dụng & Định danh */}
               <div className="truncate">
                 <h1 className="font-bold text-slate-800 dark:text-slate-100 text-sm tracking-tight leading-none mb-1">
                   Private NoteApp
                 </h1>
-                <p className="text-[10px] font-medium text-slate-400 leading-none">Quản lý ghi chú</p>
+                <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 leading-none">
+                  Quản lý ghi chú
+                </p>
               </div>
             </div>
 
+            {/* Nút đóng Sidebar trên màn hình di động */}
             <button
               type="button"
               onClick={onClose}
               className="p-1 text-slate-400 bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-800 hover:text-slate-600 dark:hover:text-slate-200 md:hidden rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+              aria-label="Đóng thanh bên"
             >
               <X size={18} />
             </button>
@@ -158,7 +170,7 @@ export default function Sidebar({ isOpen, onClose, onOpenNewTopicModal, isNewTop
             </div>
 
             <div className="space-y-1 overflow-y-auto flex-1 pr-1 custom-scrollbar">
-              {/* Chọn "all" để hiển thị ghi chú thuộc mọi chủ đề; kiểu dáng đổi theo trạng thái đang chọn. */}
+              {/* Chọn "all" để hiển thị ghi chú thuộc mọi chủ đề */}
               <div
                 onClick={() => handleSelectTopic('all')}
                 className={`group flex items-center justify-between px-3 py-2.5 rounded-xl border text-xs transition select-none cursor-pointer ${
@@ -211,7 +223,7 @@ export default function Sidebar({ isOpen, onClose, onOpenNewTopicModal, isNewTop
                       className={`p-1 rounded-lg transition shrink-0 cursor-pointer ${
                         isActive
                           ? 'bg-primary/10 text-primary hover:bg-primary/15'
-                            : 'bg-slate-50/80 dark:bg-slate-800/40 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40'
+                          : 'bg-slate-50/80 dark:bg-slate-800/40 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40'
                       }`}
                     >
                       <Trash2 size={13} />

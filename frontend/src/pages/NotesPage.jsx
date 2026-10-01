@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ArrowDownWideNarrow, BookOpenText, LayoutGrid, List, Plus } from 'lucide-react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { ArrowDownWideNarrow, BookOpenText, Check, ChevronDown, LayoutGrid, List, Plus } from 'lucide-react';
 import { useNotes } from '../context/NoteContext';
 import { useConfirm } from '../context/ConfirmContext';
 import { noteService } from '../services/noteService';
@@ -67,13 +68,18 @@ function getDateValue(note) {
 	return Number.isNaN(value) ? 0 : value;
 }
 
-export default function NotesPage() {
+export default function NotesPage({ searchQuery = '' }) {
 	const { topics, activeTopic, loading: isLoadingTopics } = useNotes();
 	const { confirm } = useConfirm() || {};
 	const [requestState, setRequestState] = useState({ key: '', notes: [], error: '' });
 	const [reloadKey, setReloadKey] = useState(0);
 	const [viewMode, setViewMode] = useState('grid');
 	const [sortOrder, setSortOrder] = useState('newest');
+	const [isSortMenuOpen, setIsSortMenuOpen] = useState(false);
+	const [sortMenuPosition, setSortMenuPosition] = useState({ left: 0, top: 0 });
+	const sortMenuRef = useRef(null);
+	const sortButtonRef = useRef(null);
+	const sortMenuContentRef = useRef(null);
 	const [pinnedNotes, setPinnedNotes] = useState(() => {
 		const newKey = getPinStorageKey();
 		const legacyKey = getLegacyPinStorageKey();
@@ -83,11 +89,12 @@ export default function NotesPage() {
 	const [isFormOpen, setIsFormOpen] = useState(false);
 	const [editingNote, setEditingNote] = useState(null);
 	const [viewedNote, setViewedNote] = useState(null);
-	const [toast, setToast] = useState({ message: '', type: 'info' });
+	const [toast, setToast] = useState(null);
 
+	const normalizedSearchQuery = searchQuery.trim();
 	const topicKey = topics.map((topic) => topic.slug).join(',');
 	// Đổi key khi chủ đề hoặc danh sách chủ đề đổi để không hiển thị nhầm dữ liệu cũ.
-	const requestKey = `${activeTopic || ''}:${topicKey}:${reloadKey}`;
+	const requestKey = `${activeTopic || ''}:${topicKey}:${normalizedSearchQuery}:${reloadKey}`;
 
 	// Lưu ghim vào localStorage mỗi khi thay đổi
 	useEffect(() => {
@@ -102,6 +109,62 @@ export default function NotesPage() {
 	}, [pinnedNotes]);
 
 	useEffect(() => {
+		if (!isSortMenuOpen) return undefined;
+
+		const closeOnOutsideClick = (event) => {
+			if (
+				!sortMenuRef.current?.contains(event.target) &&
+				!sortMenuContentRef.current?.contains(event.target)
+			) {
+				setIsSortMenuOpen(false);
+			}
+		};
+		const closeOnEscape = (event) => {
+			if (event.key === 'Escape') setIsSortMenuOpen(false);
+		};
+
+		document.addEventListener('mousedown', closeOnOutsideClick);
+		document.addEventListener('keydown', closeOnEscape);
+		return () => {
+			document.removeEventListener('mousedown', closeOnOutsideClick);
+			document.removeEventListener('keydown', closeOnEscape);
+		};
+	}, [isSortMenuOpen]);
+
+	useLayoutEffect(() => {
+		if (!isSortMenuOpen) return undefined;
+
+		const updateSortMenuPosition = () => {
+			const button = sortButtonRef.current;
+			const menu = sortMenuContentRef.current;
+			if (!button || !menu) return;
+
+			const buttonRect = button.getBoundingClientRect();
+			const menuRect = menu.getBoundingClientRect();
+			const margin = 8;
+			const left = Math.max(
+				margin,
+				Math.min(buttonRect.right - menuRect.width, window.innerWidth - menuRect.width - margin)
+			);
+			const spaceBelow = window.innerHeight - buttonRect.bottom;
+			const top =
+				spaceBelow >= menuRect.height + 12
+					? buttonRect.bottom + 8
+					: Math.max(margin, buttonRect.top - menuRect.height - 8);
+
+			setSortMenuPosition({ left, top });
+		};
+
+		updateSortMenuPosition();
+		window.addEventListener('resize', updateSortMenuPosition);
+		window.addEventListener('scroll', updateSortMenuPosition, true);
+		return () => {
+			window.removeEventListener('resize', updateSortMenuPosition);
+			window.removeEventListener('scroll', updateSortMenuPosition, true);
+		};
+	}, [isSortMenuOpen]);
+
+	useEffect(() => {
 		let isCurrentRequest = true;
 
 		// 'all' tải từng chủ đề; 404 chỉ có nghĩa chủ đề đó chưa có ghi chú.
@@ -112,7 +175,7 @@ export default function NotesPage() {
 				if (activeTopic === 'all') {
 					const notesByTopic = await Promise.all(topics.map(async (topic) => {
 						try {
-							const topicNotes = await noteService.getNotes(topic.slug);
+							const topicNotes = await noteService.getNotes(topic.slug, normalizedSearchQuery);
 							return (Array.isArray(topicNotes) ? topicNotes : []).map((note) => ({
 								...note,
 								topicSlug: topic.slug,
@@ -126,7 +189,7 @@ export default function NotesPage() {
 					loadedNotes = notesByTopic.flat();
 				} else if (activeTopic) {
 					try {
-						const topicNotes = await noteService.getNotes(activeTopic);
+						const topicNotes = await noteService.getNotes(activeTopic, normalizedSearchQuery);
 						loadedNotes = (Array.isArray(topicNotes) ? topicNotes : []).map((note) => ({
 							...note,
 							topicSlug: activeTopic,
@@ -149,7 +212,7 @@ export default function NotesPage() {
 			// Bỏ qua phản hồi muộn nếu người dùng đã chuyển chủ đề hoặc rời trang.
 			isCurrentRequest = false;
 		};
-	}, [activeTopic, topics, topicKey, requestKey]);
+	}, [activeTopic, topics, topicKey, normalizedSearchQuery, requestKey]);
 
 	const isLoading = isLoadingTopics || requestState.key !== requestKey;
 	const notes = requestState.key === requestKey ? requestState.notes : EMPTY_NOTES;
@@ -295,7 +358,7 @@ export default function NotesPage() {
 
 	return (
 		<section className="mx-auto w-full max-w-7xl space-y-6" aria-labelledby="notes-heading">
-			<header className="flex flex-wrap items-center justify-between gap-4">
+			<header className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
 				<div className="min-w-0">
 					<h1 id="notes-heading" className="truncate text-2xl font-bold text-slate-800 dark:text-slate-100">
 						{activeTopicName}
@@ -304,51 +367,108 @@ export default function NotesPage() {
 						{notes.length} ghi chú
 					</p>
 				</div>
-				<Button onClick={openCreateForm} disabled={topics.length === 0}>
-					<Plus size={17} aria-hidden="true" />
-					Thêm ghi chú
-				</Button>
-			</header>
+				<div className="flex flex-wrap items-center gap-2">
+					<div ref={sortMenuRef} className="relative">
+						<button
+							ref={sortButtonRef}
+							type="button"
+							aria-label="Sắp xếp ghi chú"
+							aria-haspopup="listbox"
+							aria-expanded={isSortMenuOpen}
+							onClick={() => setIsSortMenuOpen((open) => !open)}
+							className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-slate-500 shadow-sm transition hover:border-primary/30 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:hover:bg-slate-800/80"
+						>
+							<ArrowDownWideNarrow size={15} aria-hidden="true" />
+							<span className="text-xs font-medium text-slate-700 dark:text-slate-200">
+								{sortOrder === 'newest' ? 'Mới nhất' : sortOrder === 'oldest' ? 'Cũ nhất' : 'Tên A-Z'}
+							</span>
+							<ChevronDown
+								size={14}
+								className={`transition-transform ${isSortMenuOpen ? 'rotate-180' : ''}`}
+								aria-hidden="true"
+							/>
+						</button>
+					</div>
 
-			<div className="flex flex-wrap items-center justify-between gap-3 border-y border-slate-200/80 py-3 dark:border-slate-800">
-				<label className="flex h-10 min-w-0 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-slate-500 dark:border-slate-700 dark:bg-slate-900">
-					<ArrowDownWideNarrow size={16} aria-hidden="true" />
-					<span className="sr-only">Sắp xếp ghi chú</span>
-					<select
-						aria-label="Sắp xếp ghi chú"
-						value={sortOrder}
-						onChange={(event) => setSortOrder(event.target.value)}
-						className="min-w-0 bg-transparent text-sm text-slate-700 outline-none dark:text-slate-200"
-					>
-						<option value="newest">Mới nhất</option>
-						<option value="oldest">Cũ nhất</option>
-						<option value="title">Tên A-Z</option>
-					</select>
-				</label>
+					{isSortMenuOpen &&
+						createPortal(
+							<div
+								ref={sortMenuContentRef}
+								role="listbox"
+								aria-label="Sắp xếp ghi chú"
+								style={{
+									position: 'fixed',
+									left: sortMenuPosition.left,
+									top: sortMenuPosition.top,
+									visibility: sortMenuPosition.left ? 'visible' : 'hidden',
+								}}
+								className="z-[70] w-44 overflow-hidden rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl shadow-slate-900/10 ring-1 ring-black/5 dark:border-slate-700 dark:bg-slate-900 dark:shadow-black/30 dark:ring-white/5"
+							>
+								{[
+									{ value: 'newest', label: 'Mới nhất' },
+									{ value: 'oldest', label: 'Cũ nhất' },
+									{ value: 'title', label: 'Tên A-Z' },
+								].map((option) => (
+									<button
+										key={option.value}
+										type="button"
+										role="option"
+										aria-selected={sortOrder === option.value}
+										onClick={() => {
+											setSortOrder(option.value);
+											setIsSortMenuOpen(false);
+										}}
+										className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-xs transition ${
+											sortOrder === option.value
+												? 'bg-primary/10 font-semibold text-primary'
+												: 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
+										}`}
+									>
+										{option.label}
+										{sortOrder === option.value && <Check size={14} aria-hidden="true" />}
+									</button>
+								))}
+							</div>,
+							document.body
+						)}
 
-				<div className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-1 dark:border-slate-700 dark:bg-slate-900" role="group" aria-label="Kiểu hiển thị">
-					<button
-						type="button"
-						onClick={() => setViewMode('grid')}
-						aria-label="Hiển thị dạng lưới"
-						aria-pressed={viewMode === 'grid'}
-						title="Dạng lưới"
-						className={`grid size-8 place-items-center rounded-md transition ${viewMode === 'grid' ? 'bg-primary/10 text-primary' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-					>
-						<LayoutGrid size={17} aria-hidden="true" />
-					</button>
-					<button
-						type="button"
-						onClick={() => setViewMode('list')}
-						aria-label="Hiển thị dạng danh sách"
-						aria-pressed={viewMode === 'list'}
-						title="Dạng danh sách"
-						className={`grid size-8 place-items-center rounded-md transition ${viewMode === 'list' ? 'bg-primary/10 text-primary' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-					>
-						<List size={17} aria-hidden="true" />
-					</button>
+					<div className="flex h-10 items-center rounded-xl border border-slate-200 bg-white p-1 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+						<button
+							type="button"
+							onClick={() => setViewMode('grid')}
+							aria-label="Hiển thị dạng lưới"
+							aria-pressed={viewMode === 'grid'}
+							title="Dạng lưới"
+							className={`flex h-8 w-8 items-center justify-center rounded-lg transition ${
+								viewMode === 'grid'
+									? 'bg-primary/10 text-primary'
+									: 'text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+							}`}
+						>
+							<LayoutGrid size={16} aria-hidden="true" />
+						</button>
+						<button
+							type="button"
+							onClick={() => setViewMode('list')}
+							aria-label="Hiển thị dạng danh sách"
+							aria-pressed={viewMode === 'list'}
+							title="Dạng danh sách"
+							className={`flex h-8 w-8 items-center justify-center rounded-lg transition ${
+								viewMode === 'list'
+									? 'bg-primary/10 text-primary'
+									: 'text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+							}`}
+						>
+							<List size={16} aria-hidden="true" />
+						</button>
+					</div>
+
+					<Button onClick={openCreateForm} disabled={topics.length === 0}>
+						<Plus size={17} aria-hidden="true" />
+						Thêm ghi chú
+					</Button>
 				</div>
-			</div>
+			</header>
 
 			{loadError && (
 				<div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-200">
@@ -432,11 +552,13 @@ export default function NotesPage() {
 				/>
 			)}
 
-			<Toast
-				message={toast.message}
-				type={toast.type}
-				onClose={() => setToast({ message: '', type: 'info' })}
-			/>
+			{toast && (
+				<Toast
+					message={toast.message}
+					type={toast.type}
+					onClose={() => setToast(null)}
+				/>
+			)}
 		</section>
 	);
 }
