@@ -1,82 +1,164 @@
-import { useState } from 'react';
-import { LockKeyhole, X } from 'lucide-react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Button from '../common/Button';
+import { ShieldCheck, ShieldAlert, X } from 'lucide-react';
 import Input from '../common/Input';
+import Button from '../common/Button';
+import { useAuthPrivate } from '../../context/AuthPrivateContext';
+import { useTheme } from '../../context/ThemeContext';
+import { privateService } from '../../services/privateService';
 
-// Modal bảo vệ vùng riêng tư, hỗ trợ mở khóa và thiết lập mật khẩu mới.
-function PrivateLockModal({ isOpen, onSubmit, mode = 'unlock' }) {
-  // useNavigate nối nút X với route trang chủ của ứng dụng.
+export default function PrivateLockModal({ isOpen, onClose, onSuccess }) {
+  const { unlock } = useAuthPrivate();
+  const { hasPrivatePassword, setProfile } = useTheme();
   const navigate = useNavigate();
-  // State controlled lưu mật khẩu, lỗi validation và trạng thái gửi form.
+
+  // State chế độ Mở khóa
   const [password, setPassword] = useState('');
-  const [passwordError, setPasswordError] = useState('');
-  const [submitError, setSubmitError] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  // Chỉ mode setup mới áp dụng quy tắc mật khẩu mới dài hơn 6 ký tự.
-  const isSetup = mode === 'setup';
+
+  // State chế độ Thiết lập mật khẩu mới
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   if (!isOpen) return null;
 
-  // Kiểm tra mật khẩu trước khi gọi callback xử lý API ở component cha.
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    if (isSetup && password.length <= 6) {
-      setPasswordError('Mật khẩu mới phải dài hơn 6 ký tự.');
+  const handleClose = () => {
+    if (onClose) {
+      onClose();
+    } else {
+      navigate('/');
+    }
+  };
+
+  // Xử lý mở khóa
+  const handleUnlock = async (e) => {
+    e.preventDefault();
+    if (!password) {
+      setError('Vui lòng nhập mật khẩu');
       return;
     }
-    if (!password) {
-      setPasswordError('Vui lòng nhập mật khẩu.');
+    setError('');
+    setLoading(true);
+
+    try {
+      await unlock(password);
+      setPassword('');
+      if (onSuccess) onSuccess();
+      if (onClose) onClose();
+    } catch (err) {
+      setError(err.message || 'Mật khẩu không chính xác');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Xử lý thiết lập mật khẩu lần đầu
+  const handleSetup = async (e) => {
+    e.preventDefault();
+    
+    // Đã thay đổi điều kiện: Kiểm tra mật khẩu phải lớn hơn 6 ký tự
+    if (!newPassword || newPassword.length <= 6) {
+      setError('Mật khẩu phải lớn hơn 6 ký tự');
+      return;
+    }
+    
+    if (newPassword !== confirmPassword) {
+      setError('Xác nhận mật khẩu không trùng khớp');
       return;
     }
 
-    setPasswordError('');
-    setSubmitError('');
-    setIsSubmitting(true);
+    setError('');
+    setLoading(true);
+
     try {
-      await onSubmit(password);
-    } catch (error) {
-      setSubmitError(error?.message || 'Không thể xác thực mật khẩu.');
+      await privateService.setupPassword(newPassword);
+      setProfile((prev) => ({ ...prev, hasPrivatePassword: true }));
+      await unlock(newPassword);
+
+      if (onSuccess) onSuccess();
+      if (onClose) onClose();
+    } catch (err) {
+      setError(err.message || 'Không thể thiết lập mật khẩu');
     } finally {
-      setIsSubmitting(false);
+      setLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="presentation">
-      <div role="dialog" aria-modal="true" aria-labelledby="private-lock-title" className="relative w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-xl">
-        {/* Nút X điều hướng về trang chủ theo yêu cầu vùng riêng tư. */}
-        <button type="button" aria-label="Thoát vùng riêng tư" title="Thoát về trang chủ" onClick={() => navigate('/')} className="absolute right-4 top-4 rounded-lg p-2 text-muted-foreground hover:bg-muted">
-          <X size={20} aria-hidden="true" />
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+      <div className="relative bg-white dark:bg-slate-900 rounded-3xl w-full max-w-sm p-8 shadow-2xl border border-slate-100 dark:border-slate-800 text-center animate-fade-in">
+        
+        <button
+          type="button"
+          onClick={handleClose}
+          className="absolute right-4 top-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition"
+          title="Thoát"
+        >
+          <X size={18} />
         </button>
-        <div className="mb-6 flex flex-col items-center text-center">
-          <span className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-(--color-primary)/10 text-(--color-primary)">
-            <LockKeyhole size={24} aria-hidden="true" />
-          </span>
-          <h2 id="private-lock-title" className="text-xl font-bold">{isSetup ? 'Thiết lập vùng riêng tư' : 'Mở khóa vùng riêng tư'}</h2>
-          <p className="mt-1 text-sm text-muted-foreground">{isSetup ? 'Tạo mật khẩu mới để bảo vệ ghi chú.' : 'Nhập mật khẩu để tiếp tục.'}</p>
+
+        <div className="w-14 h-14 bg-primary/10 text-primary rounded-2xl flex items-center justify-center mx-auto mb-4">
+          {hasPrivatePassword ? <ShieldCheck size={28} /> : <ShieldAlert size={28} />}
         </div>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Input dùng chung nhận mật khẩu và hiển thị lỗi validation màu đỏ. */}
-          <Input
-            label={isSetup ? 'Mật khẩu mới' : 'Mật khẩu'}
-            type="password"
-            value={password}
-            onChange={(event) => {
-              setPassword(event.target.value);
-              if (event.target.value.length > 6 || (!isSetup && event.target.value)) setPasswordError('');
-            }}
-            error={passwordError}
-            autoFocus
-            placeholder="Nhập mật khẩu"
-          />
-          {submitError && <p className="text-sm text-red-600" role="alert">{submitError}</p>}
-          {/* Button dùng chung gọi handleSubmit và hiển thị loading khi chờ API. */}
-          <Button type="submit" loading={isSubmitting} className="w-full">{isSetup ? 'Tạo mật khẩu' : 'Mở khóa'}</Button>
-        </form>
+
+        <h3 className="text-base font-bold text-slate-800 dark:text-slate-100 mb-1">
+          {hasPrivatePassword ? 'Vùng riêng tư đã khóa' : 'Thiết lập mật khẩu bảo vệ'}
+        </h3>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">
+          {hasPrivatePassword
+            ? 'Nhập mật khẩu để mở khóa và xem các ghi chú được bảo vệ của bạn.'
+            : 'Bạn chưa có mật khẩu. Vui lòng tạo mật khẩu mới để bảo vệ vùng riêng tư.'}
+        </p>
+
+        {!hasPrivatePassword ? (
+          <form onSubmit={handleSetup} className="space-y-4">
+            <Input
+              type="password"
+              // Cập nhật lại chuỗi placeholder hiển thị gợi ý
+              placeholder="Tạo mật khẩu mới (lớn hơn 6 ký tự)..."
+              value={newPassword}
+              onChange={(e) => {
+                setNewPassword(e.target.value);
+                setError('');
+              }}
+              autoFocus
+            />
+            <Input
+              type="password"
+              placeholder="Nhập lại mật khẩu..."
+              value={confirmPassword}
+              onChange={(e) => {
+                setConfirmPassword(e.target.value);
+                setError('');
+              }}
+              error={error}
+            />
+            <Button type="submit" className="w-full py-2.5" loading={loading}>
+              Lưu & Mở khóa ngay
+            </Button>
+          </form>
+        ) : (
+          <form onSubmit={handleUnlock} className="space-y-4">
+            <Input
+              id="private-pwd"
+              type="password"
+              placeholder="Nhập mật khẩu bảo vệ..."
+              value={password}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                setError('');
+              }}
+              error={error}
+              autoFocus
+            />
+            <Button type="submit" className="w-full py-2.5" loading={loading}>
+              Mở khóa
+            </Button>
+          </form>
+        )}
       </div>
     </div>
   );
 }
-
-export default PrivateLockModal;

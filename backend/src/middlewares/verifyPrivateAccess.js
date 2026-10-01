@@ -1,42 +1,55 @@
-/**
- * MIDDLEWARE XÁC THỰC QUYỀN TRUY CẬP VÙNG RIÊNG TƯ (Task 3.4)
- * File: backend/src/middlewares/verifyPrivateAccess.js
- */
-
+// Quản lý bộ nhớ token phiên tạm thời (hết hạn sau 15 phút)
 const sessionTokens = new Map();
 
+/**
+ * Lưu token hợp lệ vào RAM
+ * @param {string} token 
+ * @param {string} username 
+ */
 function setSessionToken(token, username) {
-  sessionTokens.set(token, username);
+  const expiresAt = Date.now() + 15 * 60 * 1000; // 15 phút
+  sessionTokens.set(token, { username, expiresAt });
 }
 
 /**
- * Middleware kiểm tra Authorization Header từ Client
+ * Middleware bảo vệ các endpoint vùng riêng tư
  */
-function verifyPrivateAccess(req, res, next) {
-  // 1. Lấy chuỗi Authorization từ Header request
-  const authHeader = req.headers.authorization;
+const verifyPrivateAccess = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
 
-  // 2. Kiểm tra nếu không có Header hoặc Header không bắt đầu bằng "Bearer "
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({
-      message: 'Truy cập bị từ chối. Vui lòng cung cấp Authorization Token.'
+      success: false,
+      message: 'Không có quyền truy cập: Thiếu hoặc sai định dạng token'
     });
   }
 
-  // 3. Tách lấy phần chuỗi token phía sau chữ "Bearer "
-  const token = authHeader.slice('Bearer '.length).trim();
+  const token = authHeader.split(' ')[1];
+  const session = sessionTokens.get(token);
 
-  // 4. Đối chiếu token với phiên đã được tạo khi unlock
-  const username = sessionTokens.get(token);
-  if (!username) {
+  if (!session) {
     return res.status(401).json({
-      message: 'Token không hợp lệ hoặc đã hết hạn.'
+      success: false,
+      message: 'Token không hợp lệ hoặc phiên làm việc đã kết thúc'
     });
   }
 
-  req.authUsername = username;
-  next();
-}
+  if (Date.now() > session.expiresAt) {
+    sessionTokens.delete(token);
+    return res.status(401).json({
+      success: false,
+      message: 'Phiên làm việc đã hết hạn. Vui lòng mở khóa lại'
+    });
+  }
 
-module.exports = verifyPrivateAccess;
-module.exports.setSessionToken = setSessionToken;
+  // Gia hạn thời gian sử dụng thêm khi người dùng có hoạt động
+  session.expiresAt = Date.now() + 15 * 60 * 1000;
+  req.authUsername = session.username;
+
+  next();
+};
+
+module.exports = {
+  verifyPrivateAccess,
+  setSessionToken
+};

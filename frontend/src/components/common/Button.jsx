@@ -1,49 +1,41 @@
+import React from 'react';
 import LoadingSpinner from './LoadingSpinner';
 
-// Component nút dùng chung cho toàn bộ giao diện, hỗ trợ variant, kích thước và loading.
-function Button({
+export default function Button({
   children,
   type = 'button',
-  variant = 'primary',
+  variant = 'primary', // 'primary' | 'secondary' | 'outline' | 'danger'
   size = 'md',
-  loading = false,
+  onClick,
   disabled = false,
+  loading = false,
   className = '',
-  ...props
+  icon: Icon,
 }) {
-  // Bảng class giúp các màn hình dùng lại cùng một kiểu nút mà không lặp CSS.
-  const variantClasses = {
-    primary: 'bg-(--color-primary) text-white hover:opacity-90',
-    secondary: 'bg-muted text-foreground hover:bg-border',
-    outline: 'border border-border bg-transparent text-foreground hover:bg-muted',
-    ghost: 'bg-transparent text-foreground hover:bg-muted',
-    danger: 'bg-red-600 text-white hover:bg-red-700',
+  const baseStyles = 'inline-flex items-center justify-center font-medium rounded-xl transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed';
+
+  const sizeStyles = {
+    sm: 'px-3 py-1.5 text-xs gap-1.5',
+    md: 'px-4 py-2 text-sm gap-2',
+    lg: 'px-5 py-2.5 text-base gap-2',
   };
 
-  // Class kích thước được chọn theo prop size truyền từ component giao diện.
-  const sizeClasses = {
-    sm: 'min-h-8 px-3 text-sm',
-    md: 'min-h-10 px-4 text-sm',
-    lg: 'min-h-12 px-6 text-base',
+  const variantStyles = {
+    primary: 'bg-primary text-white hover:opacity-90 active:scale-[0.99] shadow-sm',
+    secondary: 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200',
+    outline: 'border border-slate-200 text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200',
+    danger: 'bg-red-500 text-white hover:bg-red-600',
   };
-
-  // Khi đang loading, nút bị khóa để tránh người dùng gửi cùng một thao tác nhiều lần.
-  const isDisabled = disabled || loading;
 
   return (
-    // Button nhận các thuộc tính HTML còn lại từ component gọi thông qua ...props.
     <button
       type={type}
-      disabled={isDisabled}
-      aria-busy={loading}
-      className={`inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-opacity focus:outline-none focus:ring-2 focus:ring-(--color-primary) focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 ${variantClasses[variant] || variantClasses.primary} ${sizeClasses[size] || sizeClasses.md} ${className}`}
-      {...props}
+      disabled={disabled || loading}
+      onClick={onClick}
+      className={`${baseStyles} ${sizeStyles[size]} ${variantStyles[variant]} ${className}`}
     >
-      {/* Khi loading, nối Button với LoadingSpinner để hiển thị trạng thái xử lý. */}
-      {loading && <LoadingSpinner size="sm" />}
+      {loading ? <LoadingSpinner size="sm" color="currentColor" /> : Icon && <Icon size={16} />}
       {children}
     </button>
   );
 }
-
-export default Button;

@@ -1,174 +1,276 @@
-/**
- * Sử dụng thư viện bổ trợ atomicWriteJson để ghi đè dữ liệu an toàn xuống đĩa cứng, tránh tình trạng lỗi hay mất dữ liệu khi ghi tệp.
- * Sử dụng raedJson để đọc 
- * Sử dụng findIndex để tìm
- * Sử dụng filter để lọc 
- * 
- * Sử dụng atomicWriteJson thay vì fs.WriteFile thông thường --> ghi vào tệp tạm trước --> ghi đè lên tệp chính ( bảo vệ các sự cố).  
- * 
- */
-
-
-
-
-
 const path = require('path');
-const { readJson, atomicWriteJson } = require('../utils/fileHelper');
+const fs = require('fs/promises');
 const { DATA_DIR, DEFAULT_USERNAME } = require('../config/constants');
+const { readJson, atomicWriteJson } = require('../utils/fileHelper');
 
-// Đường dẫn tuyệt đối tới thư mục chứa các tệp ghi chú theo topic (/data/users/default_user/notes)
-const notesDir = path.join(DATA_DIR, 'users', DEFAULT_USERNAME, 'notes');
+// Lấy đường dẫn file note theo topicSlug
+const getTopicFilePath = (username, topicSlug) => {
+  return path.join(DATA_DIR, 'users', username, 'notes', `${topicSlug}.json`);
+};
 
-/**
- * Hàm bổ trợ (Helper): Lấy đường dẫn tuyệt đối tới tệp JSON ghi chú của một chủ đề
- * @param {string} topicSlug - Slug của chủ đề (VD: "hoc-tap")
- * @returns {string} Đường dẫn đầy đủ tới tệp [topicSlug].json
- */
-const getNoteFilePath = (topicSlug) => path.join(notesDir, `${topicSlug}.json`);
 
-/**
- * @route   GET /api/notes/:topicSlug
- * @desc    Lấy toàn bộ danh sách ghi chú thuộc một chủ đề
- */
-async function getNotesByTopic(req, res) {
+
+// Add/update getAllNotes and getNotes in noteController.js
+
+const getAllNotes = async (req, res, next) => {
   try {
-    const { topicSlug } = req.params;
-    const filePath = getNoteFilePath(topicSlug);
+    const username = req.headers['x-username'] || DEFAULT_USERNAME;
+    const notesDir = path.join(DATA_DIR, 'users', username, 'notes');
+    const { search } = req.query;
 
-    // Đọc danh sách ghi chú từ tệp [topicSlug].json
-    const notes = await readJson(filePath);   // Sử dụng readJson để đọc 
-    return res.status(200).json(notes);
-  } catch (error) {
-    // Nếu tệp chưa tồn tại (chủ đề chưa tạo ghi chú nào) -> Báo lỗi 404
-    if (error.code === 'ENOENT') {
-      return res.status(404).json({ message: 'Không tìm thấy danh sách ghi chú cho chủ đề này.' });
-    }
-    console.error('Lỗi lấy danh sách ghi chú:', error);
-    return res.status(500).json({ message: 'Lỗi máy chủ khi đọc ghi chú.' });
-  }
-}
-
-/**
- * @route   POST /api/notes/:topicSlug
- * @desc    Tạo một ghi chú mới trong chủ đề và tự động sinh mốc thời gian (createdAt, updatedAt)
- */
-async function createNote(req, res) {
-  try {
-    const { topicSlug } = req.params;
-    const { title, content } = req.body;
-
-    // 1. Kiểm tra tiêu đề ghi chú không được để trống
-    if (!title || !title.trim()) {
-      return res.status(400).json({ message: 'Tiêu đề ghi chú không được để trống.' });
-    }
-
-    const filePath = getNoteFilePath(topicSlug);
-    let notes = [];
+    let files = [];
     try {
-      // Đọc danh sách ghi chú hiện có
-      notes = await readJson(filePath);
-    } catch (err) {
-      // Nếu file chưa tồn tại thì khởi tạo mảng rỗng
+      files = await fs.readdir(notesDir);
+    } catch {
+      return res.status(200).json([]);
+    }
+
+    const jsonFiles = files.filter((f) => f.endsWith('.json'));
+    let allNotes = [];
+
+    for (const file of jsonFiles) {
+      const topicSlug = path.basename(file, '.json');
+      const filePath = path.join(notesDir, file);
+      
+      try {
+        const notes = await readJson(filePath);
+        if (Array.isArray(notes)) {
+          const notesWithTopic = notes.map((n) => ({ ...n, topicSlug }));
+          allNotes.push(...notesWithTopic);
+        }
+      } catch {
+        // Bỏ qua nếu đọc file lỗi
+      }
+    }
+
+    // Lọc theo tìm kiếm nếu có
+    if (search && typeof search === 'string' && search.trim() !== '') {
+      const keyword = search.trim().toLowerCase();
+      allNotes = allNotes.filter(
+        (n) =>
+          (n.title && n.title.toLowerCase().includes(keyword)) ||
+          (n.content && n.content.toLowerCase().includes(keyword))
+      );
+    }
+
+    // Sắp xếp ghi chú mới nhất lên đầu
+    allNotes.sort(
+      (a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt)
+    );
+
+    return res.status(200).json(allNotes);
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getNotes = async (req, res, next) => {
+  try {
+    const { topicSlug } = req.params;
+    const { search } = req.query;
+    const username = req.headers['x-username'] || DEFAULT_USERNAME;
+
+    // TỰ ĐỘNG CHUYỂN HƯỚNG: Nếu slug là 'all', chuyển sang lấy tất cả ghi chú
+    if (topicSlug === 'all') {
+      return await getAllNotes(req, res, next);
+    }
+
+    const filePath = getTopicFilePath(username, topicSlug);
+
+    try {
+      await fs.access(filePath);
+    } catch {
+      return res.status(404).json({
+        success: false,
+        message: `Chủ đề '${topicSlug}' không tồn tại`
+      });
+    }
+
+    let notes = await readJson(filePath);
+    if (!Array.isArray(notes)) {
       notes = [];
     }
 
-    // 2. Tạo đối tượng ghi chú mới với mốc thời gian ISO chuẩn
-    const now = new Date().toISOString();
-    const newNote = {
-      id: `${Date.now()}_${Math.random().toString(36).substring(2, 7)}`, // ID độc nhất dựa trên timestamp & chuỗi ngẫu nhiên
-      title: title.trim(),
-      content: content ? content.trim() : '',
-      createdAt: now,
-      updatedAt: now
-    };
+    if (search && typeof search === 'string' && search.trim() !== '') {
+      const keyword = search.trim().toLowerCase();
+      notes = notes.filter(
+        (n) =>
+          (n.title && n.title.toLowerCase().includes(keyword)) ||
+          (n.content && n.content.toLowerCase().includes(keyword))
+      );
+    }
 
-    // 3. Thêm ghi chú mới vào mảng và ghi đè an toàn xuống tệp tin
-    notes.push(newNote);
-    await atomicWriteJson(filePath, notes); 
-
-    return res.status(201).json(newNote);
+    return res.status(200).json(notes);
   } catch (error) {
-    console.error('Lỗi tạo ghi chú:', error);
-    return res.status(500).json({ message: 'Lỗi máy chủ khi tạo ghi chú.' });
+    next(error);
   }
-}
+};
 
 /**
- * @route   PUT /api/notes/:topicSlug/:id
- * @desc    Cập nhật nội dung ghi chú và tự động làm mới thời gian updatedAt
+ * GET /api/notes/all
+ * Lấy tất cả ghi chú từ TẤT CẢ các chủ đề công khai (Không bao gồm ghi chú riêng tư)
+/**
+ * GET /api/notes/:topicSlug/:id
  */
-async function updateNote(req, res) {
+const getNoteById = async (req, res, next) => {
+  try {
+    const { topicSlug, id } = req.params;
+    const username = req.headers['x-username'] || DEFAULT_USERNAME;
+    const filePath = getTopicFilePath(username, topicSlug);
+
+    try {
+      await fs.access(filePath);
+    } catch {
+      return res.status(404).json({ success: false, message: 'Chủ đề không tồn tại' });
+    }
+
+    const notes = await readJson(filePath);
+    const note = notes.find((n) => n.id === id);
+
+    if (!note) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy ghi chú' });
+    }
+
+    return res.status(200).json(note);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * POST /api/notes/:topicSlug
+ */
+const createNote = async (req, res, next) => {
+  try {
+    const { topicSlug } = req.params;
+    const { title, content } = req.body;
+    const username = req.headers['x-username'] || DEFAULT_USERNAME;
+    const filePath = getTopicFilePath(username, topicSlug);
+
+    if (!title || typeof title !== 'string' || title.trim() === '') {
+      return res.status(400).json({
+        success: false,
+        message: 'Tiêu đề ghi chú là bắt buộc'
+      });
+    }
+
+    try {
+      await fs.access(filePath);
+    } catch {
+      return res.status(404).json({ success: false, message: 'Chủ đề không tồn tại' });
+    }
+
+    let notes = await readJson(filePath);
+    if (!Array.isArray(notes)) notes = [];
+
+    const nowIso = new Date().toISOString();
+    const newNote = {
+      id: `note-${Date.now()}`,
+      title: title.trim(),
+      content: typeof content === 'string' ? content : '',
+      createdAt: nowIso,
+      updatedAt: nowIso
+    };
+
+    notes.unshift(newNote);
+    await atomicWriteJson(filePath, notes);
+
+    return res.status(201).json({
+      success: true,
+      data: newNote
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * PUT /api/notes/:topicSlug/:id
+ */
+const updateNote = async (req, res, next) => {
   try {
     const { topicSlug, id } = req.params;
     const { title, content } = req.body;
+    const username = req.headers['x-username'] || DEFAULT_USERNAME;
+    const filePath = getTopicFilePath(username, topicSlug);
 
-    // 1. Kiểm tra nếu có truyền title mới thì không được để rỗng
-    if (title !== undefined && !title.trim()) {
-      return res.status(400).json({ message: 'Tiêu đề ghi chú không được để trống.' });
+    if (!title || typeof title !== 'string' || title.trim() === '') {
+      return res.status(400).json({
+        success: false,
+        message: 'Tiêu đề ghi chú không được để trống'
+      });
     }
 
-    const filePath = getNoteFilePath(topicSlug);
+    try {
+      await fs.access(filePath);
+    } catch {
+      return res.status(404).json({ success: false, message: 'Chủ đề không tồn tại' });
+    }
+
     const notes = await readJson(filePath);
+    const noteIndex = notes.findIndex((n) => n.id === id);
 
-    // 2. Tìm vị trí ghi chú cần sửa theo ID
-    const noteIndex = notes.findIndex(n => n.id === id); // Sử dụng findIndex để tìm vị trí
     if (noteIndex === -1) {
-      return res.status(404).json({ message: 'Không tìm thấy ghi chú.' });
+      return res.status(404).json({ success: false, message: 'Không tìm thấy ghi chú để sửa' });
     }
 
-    // 3. Cập nhật thông tin mới, giữ nguyên createdAt và làm mới updatedAt
-    notes[noteIndex] = {
+    const updatedNote = {
       ...notes[noteIndex],
-      title: title !== undefined ? title.trim() : notes[noteIndex].title,
-      content: content !== undefined ? content.trim() : notes[noteIndex].content,
+      title: title.trim(),
+      content: typeof content === 'string' ? content : notes[noteIndex].content,
       updatedAt: new Date().toISOString()
     };
 
-    // 4. Ghi lại dữ liệu cập nhật xuống ổ đĩa
+    notes[noteIndex] = updatedNote;
     await atomicWriteJson(filePath, notes);
-    return res.status(200).json(notes[noteIndex]);
+
+    return res.status(200).json({
+      success: true,
+      data: updatedNote
+    });
   } catch (error) {
-    // Xử lý trường hợp file không tồn tại trên đĩa
-    if (error.code === 'ENOENT') {
-      return res.status(404).json({ message: 'Không tìm thấy danh sách ghi chú cho chủ đề này.' });
-    }
-    console.error('Lỗi cập nhật ghi chú:', error);
-    return res.status(500).json({ message: 'Lỗi máy chủ khi cập nhật ghi chú.' });
+    next(error);
   }
-}
+};
 
 /**
- * @route   DELETE /api/notes/:topicSlug/:id
- * @desc    Xóa một ghi chú khỏi chủ đề theo ID
+ * DELETE /api/notes/:topicSlug/:id
  */
-async function deleteNote(req, res) {
+const deleteNote = async (req, res, next) => {
   try {
     const { topicSlug, id } = req.params;
+    const username = req.headers['x-username'] || DEFAULT_USERNAME;
+    const filePath = getTopicFilePath(username, topicSlug);
 
-    const filePath = getNoteFilePath(topicSlug);
+    try {
+      await fs.access(filePath);
+    } catch {
+      return res.status(404).json({ success: false, message: 'Chủ đề không tồn tại' });
+    }
+
     const notes = await readJson(filePath);
+    const initialLength = notes.length;
+    const filteredNotes = notes.filter((n) => n.id !== id);
 
-    // 1. Lọc bỏ ghi chú có ID tương ứng
-    const updatedNotes = notes.filter(n => n.id !== id);
-    if (notes.length === updatedNotes.length) {
-      return res.status(404).json({ message: 'Không tìm thấy ghi chú để xóa.' });
+    if (filteredNotes.length === initialLength) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy ghi chú để xóa' });
     }
 
-    // 2. Ghi lại mảng dữ liệu mới sau khi đã lọc
-    await atomicWriteJson(filePath, updatedNotes);
-    return res.status(200).json({ message: 'Xóa ghi chú thành công.', id });
+    await atomicWriteJson(filePath, filteredNotes);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Đã xóa ghi chú thành công'
+    });
   } catch (error) {
-    // Xử lý trường hợp file không tồn tại trên đĩa
-    if (error.code === 'ENOENT') {
-      return res.status(404).json({ message: 'Không tìm thấy danh sách ghi chú cho chủ đề này.' });
-    }
-    console.error('Lỗi xóa ghi chú:', error);
-    return res.status(500).json({ message: 'Lỗi máy chủ khi xóa ghi chú.' });
+    next(error);
   }
-}
-//export đủ 4 hàm CRUD
+};
+
 module.exports = {
-  getNotesByTopic,
+  getAllNotes,
+  getNotes,
+  getNoteById,
   createNote,
   updateNote,
   deleteNote

@@ -1,13 +1,22 @@
-import { Route, Routes } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Routes, Route } from 'react-router-dom';
+import { ThemeProvider } from './context/ThemeContext';
+import { NoteProvider } from './context/NoteContext';
+import { AuthPrivateProvider } from './context/AuthPrivateContext';
+import { ConfirmProvider } from './context/ConfirmContext'; // <-- Thêm dòng này
 import MainLayout from './components/layout/MainLayout';
 import NotesPage from './pages/NotesPage';
 import PrivateNotesPage from './pages/PrivateNotesPage';
 import SettingsPage from './pages/SettingsPage';
+import { useDebounce } from './hooks/useDebounce';
 
+export default function App() {
+  const [searchInput, setSearchInput] = useState('');
+  const debouncedSearch = useDebounce(searchInput, 400);
 
-
-function App() {
-
+  return (
+    <>
+    
+    </>
+  );
 }
-
-export default App;

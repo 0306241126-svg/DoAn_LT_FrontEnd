@@ -1,138 +1,88 @@
-import { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import topicService from '../services/topicService';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { topicService } from '../services/topicService'; // <-- Bổ sung dòng này
 
-const NoteContext = createContext(null);
-const ACTIVE_TOPIC_STORAGE_KEY = 'activeTopic';
-
-const fallbackTopics = [
-  { name: 'Học tập', slug: 'hoc-tap' },
-  { name: 'Công việc', slug: 'cong-viec' },
-  { name: 'Cá nhân', slug: 'ca-nhan' },
-];
+const NoteContext = createContext();
 
 export function NoteProvider({ children }) {
-  const [topics, setTopics] = useState(fallbackTopics);
-  const [isLoadingTopics, setIsLoadingTopics] = useState(true);
-  const [topicError, setTopicError] = useState('');
-  const [activeTopic, setActiveTopic] = useState(
-    () => localStorage.getItem(ACTIVE_TOPIC_STORAGE_KEY) || fallbackTopics[0].slug,
-  );
+  const [topics, setTopics] = useState([]);
+  
+  // Lưu chủ đề đang xem; giá trị "all" biểu thị chế độ xem tất cả chủ đề.
+  const [activeTopic, setActiveTopic] = useState('all');
+  const [loading, setLoading] = useState(false);
 
-  const loadTopics = useCallback(async () => {
+  // Lấy danh sách chủ đề ban đầu
+  const fetchTopics = async () => {
+    setLoading(true);
     try {
-      const loadedTopics = await topicService.getTopics();
-      setTopics(loadedTopics);
-      setActiveTopic((currentTopic) => (
-        loadedTopics.some((topic) => topic.slug === currentTopic)
-          ? currentTopic
-          : loadedTopics[0]?.slug || ''
-      ));
-      setTopicError('');
-    } catch (error) {
-      setTopicError(error?.message || 'Không thể tải danh sách chủ đề.');
+      const res = await topicService.getTopics();
+      const topicList = res.data || res || [];
+      setTopics(Array.isArray(topicList) ? topicList : []);
+    } catch (err) {
+      console.error('Lỗi tải chủ đề:', err);
     } finally {
-      setIsLoadingTopics(false);
+      setLoading(false);
     }
-  }, []);
+  };
 
   useEffect(() => {
-    let isMounted = true;
-    topicService.getTopics()
-      .then((loadedTopics) => {
-        if (!isMounted) return;
-        setTopics(loadedTopics);
-        setActiveTopic((currentTopic) => (
-          loadedTopics.some((topic) => topic.slug === currentTopic)
-            ? currentTopic
-            : loadedTopics[0]?.slug || ''
-        ));
-        setTopicError('');
-      })
-      .catch((error) => {
-        if (isMounted) setTopicError(error?.message || 'Không thể tải danh sách chủ đề.');
-      })
-      .finally(() => {
-        if (isMounted) setIsLoadingTopics(false);
-      });
-
-    return () => {
-      isMounted = false;
-    };
+    fetchTopics();
   }, []);
 
-  useEffect(() => {
-    localStorage.setItem(ACTIVE_TOPIC_STORAGE_KEY, activeTopic);
-  }, [activeTopic]);
-
-  const addTopic = useCallback(async (name) => {
-    const trimmedName = name.trim();
-    if (!trimmedName) throw new Error('Tên chủ đề không được để trống.');
-
+// Thêm chủ đề mới
+  const addTopic = async (name) => {
     try {
-      const createdTopic = await topicService.createTopic(trimmedName);
-      setTopics((currentTopics) => [...currentTopics, createdTopic]);
-      setActiveTopic(createdTopic.slug);
-      setTopicError('');
-      return createdTopic;
-    } catch (error) {
-      setTopicError(error?.response?.data?.message || error?.message || 'Không thể tạo chủ đề.');
-      throw error;
+      const res = await topicService.createTopic(name);
+      
+      // Xử lý linh hoạt cả 2 trường hợp: Backend trả về { success: true, data: { slug, name } } hoặc thẳng { slug, name }
+      const newTopic = res?.data || res;
+
+      if (!newTopic || !newTopic.slug) {
+        throw new Error('Dữ liệu chủ đề tạo mới không hợp lệ');
+      }
+
+      setTopics((prev) => [...prev, newTopic]);
+      setActiveTopic(newTopic.slug);
+      return newTopic;
+    } catch (err) {
+      console.error('Lỗi khi thêm chủ đề:', err);
+      throw err;
     }
-  }, []);
+  };
 
-  const renameTopic = useCallback(async (slug, name) => {
-    const trimmedName = name.trim();
-    if (!trimmedName) throw new Error('Tên chủ đề không được để trống.');
-
-    try {
-      const updatedTopic = await topicService.updateTopic(slug, trimmedName);
-      setTopics((currentTopics) => currentTopics.map((topic) => (
-        topic.slug === slug ? updatedTopic : topic
-      )));
-      setTopicError('');
-      return updatedTopic;
-    } catch (error) {
-      setTopicError(error?.response?.data?.message || error?.message || 'Không thể đổi tên chủ đề.');
-      throw error;
-    }
-  }, []);
-
-  const removeTopic = useCallback(async (slug) => {
+  // Xóa chủ đề
+  const removeTopic = async (slug) => {
     try {
       await topicService.deleteTopic(slug);
-      const remainingTopics = topics.filter((topic) => topic.slug !== slug);
-      setTopics(remainingTopics);
-      if (activeTopic === slug) setActiveTopic(remainingTopics[0]?.slug || '');
-      setTopicError('');
-    } catch (error) {
-      setTopicError(error?.response?.data?.message || error?.message || 'Không thể xóa chủ đề.');
-      throw error;
+      setTopics((prev) => {
+        const nextTopics = prev.filter((t) => t.slug !== slug);
+        if (activeTopic === slug) {
+          setActiveTopic(nextTopics.length > 0 ? nextTopics[0].slug : null);
+        }
+        return nextTopics;
+      });
+    } catch (err) {
+      throw err;
     }
-  }, [activeTopic, topics]);
+  };
 
+  // Chia sẻ chủ đề hiện tại và hàm cập nhật để Sidebar, NotesPage cùng dùng.
   return (
-    <NoteContext.Provider value={{
-      topics,
-      setTopics,
-      activeTopic,
-      setActiveTopic,
-      isLoadingTopics,
-      topicError,
-      clearTopicError: () => setTopicError(''),
-      reloadTopics: loadTopics,
-      addTopic,
-      renameTopic,
-      removeTopic,
-    }}>
+    <NoteContext.Provider
+      value={{
+        topics,
+        activeTopic,
+        setActiveTopic,
+        addTopic,
+        removeTopic,
+        loading,
+        refreshTopics: fetchTopics,
+      }}
+    >
       {children}
     </NoteContext.Provider>
   );
 }
 
 export function useNotes() {
-  const context = useContext(NoteContext);
-  if (!context) {
-    throw new Error('useNotes phải được đặt bên trong NoteProvider');
-  }
-  return context;
+  return useContext(NoteContext);
 }

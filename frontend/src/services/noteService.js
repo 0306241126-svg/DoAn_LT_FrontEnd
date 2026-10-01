@@ -1,55 +1,62 @@
 import api from './api';
 
 export const noteService = {
-  // Lấy danh sách ghi chú thuộc 1 chủ đề (slug)
-  getNotesByTopic: async (topicSlug) => {
-    if (!topicSlug) return [];
-    try {
-      const data = await api.get(`/notes/${topicSlug}`);
-      const notes = Array.isArray(data) ? data : data?.notes;
-      if (!Array.isArray(notes)) {
-        throw new Error(`Phản hồi danh sách ghi chú của chủ đề ${topicSlug} không hợp lệ.`);
-      }
-      return notes;
-    } catch (error) {
-      console.error(`Lỗi khi tải ghi chú của chủ đề ${topicSlug}:`, error?.response?.data || error?.message);
-      throw error;
-    }
+  // === CHỦ ĐỀ (TOPICS) ===
+  getTopics: async () => {
+    return await api.get('/topics');
   },
 
-  // Tạo ghi chú mới vào chủ đề
+  createTopic: async (name) => {
+    return await api.post('/topics', { name });
+  },
+
+  updateTopic: async (slug, newName) => {
+    return await api.put(`/topics/${slug}`, { newName });
+  },
+
+  deleteTopic: async (slug) => {
+    return await api.delete(`/topics/${slug}`);
+  },
+
+  // === GHI CHÚ THƯỜNG (NOTES) ===
+  getNotes: async (topicSlug, search = '') => {
+    const query = search ? `?search=${encodeURIComponent(search)}` : '';
+    return await api.get(`/notes/${topicSlug}${query}`);
+  },
+
+  getAllNotes: async (topics, search = '') => {
+    const notesByTopic = await Promise.all(
+      topics.map(async ({ slug }) => {
+        const notes = await noteService.getNotes(slug, search);
+        return Array.isArray(notes)
+          ? notes.map((note) => ({ ...note, topicSlug: slug }))
+          : [];
+      })
+    );
+
+    return notesByTopic
+      .flat()
+      .sort(
+        (a, b) =>
+          new Date(b.updatedAt || b.createdAt || 0).getTime() -
+          new Date(a.updatedAt || a.createdAt || 0).getTime()
+      );
+  },
+
+  getNoteById: async (topicSlug, id) => {
+    return await api.get(`/notes/${topicSlug}/${id}`);
+  },
+
   createNote: async (topicSlug, noteData) => {
-    try {
-      // noteData dạng: { title: "Tiêu đề", content: "Nội dung" }
-      const data = await api.post(`/notes/${topicSlug}`, noteData);
-      return data;
-    } catch (error) {
-      console.error('Lỗi khi tạo ghi chú:', error?.response?.data || error?.message);
-      throw error;
-    }
+    // noteData: { title, content }
+    return await api.post(`/notes/${topicSlug}`, noteData);
   },
 
-  // Cập nhật nội dung ghi chú
-  updateNote: async (topicSlug, noteId, noteData) => {
-    try {
-      const data = await api.put(`/notes/${topicSlug}/${noteId}`, noteData);
-      return data;
-    } catch (error) {
-      console.error('Lỗi khi cập nhật ghi chú:', error?.response?.data || error?.message);
-      throw error;
-    }
+  updateNote: async (topicSlug, id, noteData) => {
+    return await api.put(`/notes/${topicSlug}/${id}`, noteData);
   },
 
-  // Xóa ghi chú
-  deleteNote: async (topicSlug, noteId) => {
-    try {
-      const data = await api.delete(`/notes/${topicSlug}/${noteId}`);
-      return data;
-    } catch (error) {
-      console.error('Lỗi khi xóa ghi chú:', error?.response?.data || error?.message);
-      throw error;
-    }
+  deleteNote: async (topicSlug, id) => {
+    return await api.delete(`/notes/${topicSlug}/${id}`);
   },
 };
-
-export default noteService;

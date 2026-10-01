@@ -1,50 +1,48 @@
-import { useEffect } from 'react';
+import React, { useEffect } from 'react';
+import { CheckCircle, AlertCircle, Info, X } from 'lucide-react';
 
-// Toast dùng để hiển thị thông báo tạm thời ở vị trí cố định phía trên màn hình.
-function Toast({ message, type = 'info', duration = 3000, onClose, className = '' }) {
-  // Tự động đóng Toast sau duration và dọn timeout khi Toast bị gỡ khỏi giao diện.
+export default function Toast({ message, type = 'success', onClose, duration = 3000 }) {
   useEffect(() => {
-    if (!message || !onClose || duration <= 0) {
-      return undefined;
+    if (duration) {
+      const timer = setTimeout(() => {
+        if (onClose) onClose();
+      }, duration);
+      return () => clearTimeout(timer);
     }
+  }, [duration, onClose]);
 
-    const timeoutId = window.setTimeout(onClose, duration);
-    return () => window.clearTimeout(timeoutId);
-  }, [duration, message, onClose]);
-
-  // Không render hộp thông báo khi chưa có nội dung.
-  if (!message) {
-    return null;
-  }
-
-  // Mỗi loại thông báo có màu riêng để người dùng nhận biết trạng thái.
-  const typeClasses = {
-    success: 'border-green-200 bg-green-50 text-green-800',
-    error: 'border-red-200 bg-red-50 text-red-800',
-    warning: 'border-yellow-200 bg-yellow-50 text-yellow-800',
-    info: 'border-blue-200 bg-blue-50 text-blue-800',
+  // Cấu hình Icon theo loại thông báo
+  const icons = {
+    success: <CheckCircle className="text-emerald-500 shrink-0" size={20} />,
+    error: <AlertCircle className="text-rose-500 shrink-0" size={20} />,
+    info: <Info className="text-blue-500 shrink-0" size={20} />,
   };
 
-  // Toast luôn nổi trên modal và nội dung, đồng thời được căn giữa ở mép trên màn hình.
+  // Cấu hình màu nền và viền
+  const styles = {
+    success: 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200',
+    error: 'bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-200',
+    info: 'bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200',
+  };
+
   return (
-    <div
-      role="alert"
-      className={`fixed left-1/2 top-6 z-[100] w-[calc(100vw-2rem)] max-w-md -translate-x-1/2 rounded-lg border px-4 py-3 text-center shadow-lg ${typeClasses[type] || typeClasses.info} ${className}`}
-    >
-      <span>{message}</span>
-      {/* Nút đóng được render khi component cha truyền callback onClose. */}
-      {onClose && (
+    // fixed top-6 left-1/2 -translate-x-1/2 giúp căn giữa chính xác trên cùng màn hình
+    <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[100] animate-fade-in drop-shadow-xl w-[calc(100%-2rem)] sm:w-auto">
+      <div className={`flex items-center gap-3 px-4 py-3 rounded-2xl border ${styles[type]} min-w-[280px] max-w-md`}>
+        {icons[type]}
+        
+        <span className="flex-1 text-sm font-semibold">
+          {message}
+        </span>
+        
         <button
           type="button"
           onClick={onClose}
-          aria-label="Đóng thông báo"
-          className="ml-3 font-semibold hover:opacity-70"
+          className="p-1 hover:bg-black/10 dark:hover:bg-white/10 rounded-lg transition shrink-0 cursor-pointer"
         >
-          ×
+          <X size={16} className="opacity-70" />
         </button>
-      )}
+      </div>
     </div>
   );
 }
-
-export default Toast;
