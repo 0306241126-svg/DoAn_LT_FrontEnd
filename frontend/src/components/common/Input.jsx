@@ -1,68 +1,52 @@
-import { useId, useState } from 'react';
+import React, { useState } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
 
-// Component ô nhập liệu dùng chung, tự hiển thị lỗi cho trường bắt buộc bị bỏ trống.
-function Input({
-  id,
+export default function Input({
   label,
+  id,
+  type = 'text',
+  value,
+  onChange,
+  placeholder,
   error,
   required = false,
   className = '',
-  containerClassName = '',
-  onBlur,
-  onChange,
-  value,
-  defaultValue,
   ...props
 }) {
-  // Tạo id tự động khi màn hình không truyền id, giúp label liên kết đúng với input.
-  const generatedId = useId();
-  const inputId = id || generatedId;
-  // Theo dõi giá trị uncontrolled để trạng thái lỗi cũng cập nhật khi người dùng nhập.
-  const [uncontrolledValue, setUncontrolledValue] = useState(defaultValue ?? '');
-  const valueToValidate = value !== undefined ? value : uncontrolledValue;
-  const requiredError =
-    required && (valueToValidate == null || String(valueToValidate).trim() === '')
-      ? 'Trường này không được để trống.'
-      : '';
-  // Lỗi truyền từ component cha được ưu tiên hơn lỗi required mặc định.
-  const displayError = error || requiredError;
-  const describedBy = displayError ? `${inputId}-error` : undefined;
-  const handleChange = (event) => {
-    if (value === undefined) setUncontrolledValue(event.target.value);
-    onChange?.(event);
-  };
+  const [showPassword, setShowPassword] = useState(false);
+  const isPassword = type === 'password';
 
   return (
-    <div className={`w-full ${containerClassName}`}>
+    <div className="w-full text-left">
       {label && (
-        <label htmlFor={inputId} className="mb-1.5 block text-sm font-medium text-foreground">
-          {label}
-          {required && <span className="ml-1 text-red-600" aria-hidden="true">*</span>}
+        <label htmlFor={id} className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+          {label} {required && <span className="text-red-500">*</span>}
         </label>
       )}
-      {/* Input nhận các thuộc tính bổ sung như type, placeholder và onChange từ component gọi. */}
-      <input
-        id={inputId}
-        value={value}
-        defaultValue={defaultValue}
-        required={required}
-        aria-invalid={Boolean(displayError)}
-        aria-describedby={describedBy}
-        onBlur={onBlur}
-        onChange={handleChange}
-        className={`w-full rounded-lg border bg-background px-3 py-2 text-foreground outline-none transition focus:ring-2 focus:ring-(--color-primary) ${
-          displayError ? 'border-red-500 focus:ring-red-500' : 'border-border'
-        } ${className}`}
-        {...props}
-      />
-      {/* Hiển thị lỗi ngay dưới ô nhập và liên kết với aria-describedby để hỗ trợ truy cập. */}
-      {displayError && (
-        <p id={`${inputId}-error`} className="mt-1 text-sm text-red-600" role="alert">
-          {displayError}
-        </p>
-      )}
+      <div className="relative">
+        <input
+          id={id}
+          type={isPassword ? (showPassword ? 'text' : 'password') : type}
+          value={value}
+          onChange={onChange}
+          placeholder={placeholder}
+          required={required}
+          className={`w-full px-3.5 py-2.5 text-sm rounded-xl border transition-all duration-150 outline-none
+            ${error ? 'border-red-400 focus:border-red-500' : 'border-slate-200 dark:border-slate-700 focus:border-primary focus:ring-2 focus:ring-primary/20'}
+            bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 placeholder-slate-400 ${className}`}
+          {...props}
+        />
+        {isPassword && (
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition"
+          >
+            {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+          </button>
+        )}
+      </div>
+      {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
     </div>
   );
 }
-
-export default Input;

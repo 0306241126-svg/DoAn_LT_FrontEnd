@@ -1,19 +1,17 @@
-// Spinner dùng chung cho các nút hoặc khu vực đang chờ dữ liệu xử lý.
-function LoadingSpinner({ size = 'md', className = '' }) {
-  // Mỗi kích thước ánh xạ tới một nhóm class cố định để giao diện không bị nhảy kích thước.
-  const sizeClasses = {
-    sm: 'h-4 w-4 border-2',
-    md: 'h-5 w-5 border-2',
-    lg: 'h-8 w-8 border-[3px]',
+import React from 'react';
+
+export default function LoadingSpinner({ size = 'md', color = 'text-primary' }) {
+  const sizeMap = {
+    sm: 'w-4 h-4 border-2',
+    md: 'w-6 h-6 border-2',
+    lg: 'w-10 h-10 border-3',
   };
 
-  // border-t-transparent tạo hiệu ứng vòng xoay khi kết hợp với animate-spin.
   return (
-    <span
-      aria-hidden="true"
-      className={`inline-block animate-spin rounded-full border-current border-t-transparent ${sizeClasses[size] || sizeClasses.md} ${className}`}
-    />
+    <div className="flex justify-center items-center">
+      <div
+        className={`${sizeMap[size]} ${color} border-t-transparent rounded-full animate-spin`}
+      />
+    </div>
   );
 }
-
-export default LoadingSpinner;

@@ -1,12 +1,11 @@
-import { useEffect, useState } from 'react';
-import { Check, Moon, Pencil, Plus, Sun, Trash2, X } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Sun, Moon, Palette, User, ShieldCheck } from 'lucide-react';
+import { useTheme, THEME_COLORS } from '../context/ThemeContext';
+import Input from '../components/common/Input';
 import Button from '../components/common/Button';
-import { useNotes } from '../context/NoteContext';
-import { THEME_COLORS, useTheme } from '../context/ThemeContext';
-import profileService from '../services/profileService';
+import Toast from '../components/common/Toast';
+import { privateService } from '../services/privateService';
 
-function SettingsPage() {
-
+export default function SettingsPage() {
+  
 }
-
-export default SettingsPage;

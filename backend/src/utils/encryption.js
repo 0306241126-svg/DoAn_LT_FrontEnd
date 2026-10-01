@@ -1,36 +1,33 @@
-/**
- * TỆP TIỆN ÍCH MÃ HÓA MẬT KHẨU (backend/src/utils/encryption.js)
- * Mục đích: Băm mật khẩu một chiều và xác thực mật khẩu người dùng bằng thư viện bcrypt.
- */
-
 const bcrypt = require('bcrypt');
 
-// Số vòng làm muối (salt rounds), chuẩn khuyến nghị an toàn và hiệu năng tốt là 10
+// Số vòng băm tiêu chuẩn để đảm bảo cân bằng giữa hiệu năng và độ bảo mật
 const SALT_ROUNDS = 10;
 
 /**
- * Băm mật khẩu dạng chuỗi thô (plain-text) thành chuỗi hash an toàn
- * @param {string} plainPassword - Mật khẩu người dùng nhập
- * @returns {Promise<string>} - Chuỗi băm an toàn bcrypt
+ * Băm mật khẩu khi người dùng thiết lập mới hoặc đổi mật khẩu
+ * @param {string} plainPassword - Mật khẩu dạng văn bản gốc người dùng nhập
+ * @returns {Promise<string>} Chuỗi mật khẩu đã được hash an toàn
  */
 async function hashPassword(plainPassword) {
   if (!plainPassword || typeof plainPassword !== 'string') {
-    throw new Error('Mật khẩu plainPassword phải là chuỗi ký tự hợp lệ.');
+    throw new Error('Mật khẩu không hợp lệ để mã hóa');
   }
-  return await bcrypt.hash(plainPassword, SALT_ROUNDS);
+  const hash = await bcrypt.hash(plainPassword, SALT_ROUNDS);
+  return hash;
 }
 
 /**
- * So khớp mật khẩu dạng chuỗi thô với mã hash đã lưu
- * @param {string} plainPassword - Mật khẩu người dùng nhập vào để kiểm tra
- * @param {string} hashedPassword - Chuỗi băm đã lưu trữ trước đó
- * @returns {Promise<boolean>} - Trả về true nếu khớp, ngược lại false
+ * So sánh mật khẩu gốc với chuỗi hash đã lưu trong profile.json khi mở khóa vùng riêng tư
+ * @param {string} plainPassword - Mật khẩu người dùng nhập vào modal
+ * @param {string} hashedPassword - Chuỗi hash đọc ra từ file profile.json
+ * @returns {Promise<boolean>} Trả về true nếu khớp, ngược lại false
  */
 async function comparePassword(plainPassword, hashedPassword) {
   if (!plainPassword || !hashedPassword) {
     return false;
   }
-  return await bcrypt.compare(plainPassword, hashedPassword);
+  const isMatch = await bcrypt.compare(plainPassword, hashedPassword);
+  return isMatch;
 }
 
 module.exports = {

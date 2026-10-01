@@ -18,10 +18,10 @@ const setupPassword = async (req, res, next) => {
     const username = req.headers['x-username'] || DEFAULT_USERNAME;
     const profilePath = getProfilePath(username);
 
-    if (typeof password !== 'string' || password.length <= 6) {
+    if (!password || typeof password !== 'string' || password.length < 4) {
       return res.status(400).json({
         success: false,
-        message: 'Mật khẩu mới phải dài hơn 6 ký tự.'
+        message: 'Mật khẩu phải có độ dài ít nhất 4 ký tự'
       });
     }
 
@@ -106,15 +106,10 @@ const changePassword = async (req, res, next) => {
     const username = req.headers['x-username'] || DEFAULT_USERNAME;
     const profilePath = getProfilePath(username);
 
-    if (
-      typeof oldPassword !== 'string' ||
-      !oldPassword ||
-      typeof newPassword !== 'string' ||
-      newPassword.length <= 6
-    ) {
+    if (!oldPassword || !newPassword || newPassword.length < 4) {
       return res.status(400).json({
         success: false,
-        message: 'Mật khẩu mới phải dài hơn 6 ký tự.'
+        message: 'Mật khẩu mới phải có tối thiểu 4 ký tự'
       });
     }
 

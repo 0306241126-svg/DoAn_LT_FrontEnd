@@ -1,16 +1,18 @@
 const express = require('express');
-const {
-  getTopics,
-  createTopic,
-  updateTopic,
-  deleteTopic
-} = require('../controllers/topicController');
-
 const router = express.Router();
 
+// Lấy đủ 4 hàm từ controller
+const { 
+  getTopics, 
+  createTopic, 
+  updateTopic, 
+  deleteTopic 
+} = require('../controllers/topicController');
+
+// Khai báo các API routes
 router.get('/', getTopics);
 router.post('/', createTopic);
-router.put('/:slug', updateTopic);
-router.delete('/:slug', deleteTopic);
+router.put('/:topicSlug', updateTopic);
+router.delete('/:topicSlug', deleteTopic);
 
 module.exports = router;

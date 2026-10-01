@@ -1,6 +1,5 @@
 const express = require('express');
 const router = express.Router();
-const verifyPrivateAccess = require('../middlewares/verifyPrivateAccess');
 const {
   setupPassword,
   unlockPrivate,
@@ -10,21 +9,17 @@ const {
   updatePrivateNote,
   deletePrivateNote
 } = require('../controllers/privateController');
+const { verifyPrivateAccess } = require('../middlewares/verifyPrivateAccess');
 
-// 1. Thiết lập và mở khóa công khai
+// Các route xác thực không cần middleware
 router.post('/setup', setupPassword);
 router.post('/unlock', unlockPrivate);
+router.put('/change-password', changePassword);
 
-// 2. Đổi mật khẩu yêu cầu phiên riêng tư hợp lệ
-router.put('/change-password', verifyPrivateAccess, changePassword);
-
-// 3. Áp dụng Middleware xác thực cho toàn bộ các endpoint /notes bên dưới
-router.use('/notes', verifyPrivateAccess);
-
-// 4. Các endpoint CRUD làm việc với tệp private.json
-router.get('/notes', getPrivateNotes);
-router.post('/notes', createPrivateNote);
-router.put('/notes/:id', updatePrivateNote);
-router.delete('/notes/:id', deletePrivateNote);
+// Các route CRUD bị khóa bởi middleware bảo vệ
+router.get('/notes', verifyPrivateAccess, getPrivateNotes);
+router.post('/notes', verifyPrivateAccess, createPrivateNote);
+router.put('/notes/:id', verifyPrivateAccess, updatePrivateNote);
+router.delete('/notes/:id', verifyPrivateAccess, deletePrivateNote);
 
 module.exports = router;
