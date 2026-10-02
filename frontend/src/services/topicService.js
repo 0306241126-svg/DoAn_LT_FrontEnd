@@ -13,12 +13,4 @@ export const topicService = {
     const res = await api.delete(`/topics/${slug}`);
     return res?.data ?? res;
   },
-  restoreTopic: async (slug) => {
-    const res = await api.post(`/topics/trash/${slug}/restore`);
-    return res?.data ?? res;
-  },
-  permanentlyDeleteTopic: async (slug) => {
-    const res = await api.delete(`/topics/trash/${slug}/permanent`);
-    return res?.data ?? res;
-  },
 };
