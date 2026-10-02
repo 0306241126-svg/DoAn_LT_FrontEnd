@@ -14,15 +14,19 @@ export default function Sidebar({ isOpen, onClose, onOpenNewTopicModal, isNewTop
   const handleDeleteTopic = async (e, topic) => {
     e.stopPropagation();
     const isOk = await confirm({
-      title: 'Xóa chủ đề',
-      message: `Chủ đề "${topic.name}" và các ghi chú bên trong sẽ được chuyển vào thùng rác, bạn có thể khôi phục sau.`,
+      title: 'Chuyển chủ đề vào thùng rác',
+      message: `Chủ đề "${topic.name}" cùng tất cả ghi chú bên trong sẽ được chuyển vào thùng rác và có thể khôi phục.`,
       confirmText: 'Chuyển vào thùng rác',
-      cancelText: 'Giữ lại',
-      type: 'danger',
+      cancelText: 'Hủy',
+      type: 'warning',
     });
 
     if (isOk) {
-      removeTopic(topic.slug);
+      try {
+        await removeTopic(topic.slug);
+      } catch (error) {
+        window.alert(error.message || 'Không thể chuyển chủ đề vào thùng rác');
+      }
     }
   };
 
@@ -123,36 +127,6 @@ export default function Sidebar({ isOpen, onClose, onOpenNewTopicModal, isNewTop
               <ChevronRight size={14} className="opacity-50 shrink-0 group-hover:translate-x-0.5 transition-transform" />
             </NavLink>
 
-            <NavLink
-              to="/trash"
-              onClick={onClose}
-              className={({ isActive }) =>
-                `flex items-center gap-2.5 px-3 py-2 rounded-xl border text-xs transition-all ${
-                  isActive
-                    ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/30 dark:text-rose-300 dark:border-rose-900/60 font-semibold'
-                    : 'bg-slate-50/80 dark:bg-slate-800/40 border-slate-200/60 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200 dark:hover:bg-rose-950/30 dark:hover:text-rose-300'
-                }`
-              }
-            >
-              <Trash2 size={16} className="shrink-0" />
-              <span>Thùng rác</span>
-            </NavLink>
-
-            {/* Cài đặt */}
-            <NavLink
-              to="/settings"
-              onClick={onClose}
-              className={({ isActive }) =>
-                `flex items-center gap-2.5 px-3 py-2 rounded-xl border text-xs transition-all ${
-                  isActive
-                    ? 'bg-primary/10 text-primary border-primary/20 dark:bg-primary/20 dark:text-primary-300 font-semibold'
-                    : 'bg-slate-50/80 dark:bg-slate-800/40 border-slate-200/60 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-primary/10 hover:text-primary hover:border-primary/20 dark:hover:bg-primary/20 dark:hover:text-primary-300'
-                }`
-              }
-            >
-              <Settings size={16} className="shrink-0" />
-              <span>Cài đặt</span>
-            </NavLink>
           </div>
 
           {/* Đường phân cách nhẹ */}
@@ -234,7 +208,7 @@ export default function Sidebar({ isOpen, onClose, onOpenNewTopicModal, isNewTop
                     <button
                       type="button"
                       onClick={(e) => handleDeleteTopic(e, topic)}
-                      title="Xóa chủ đề"
+                      title="Chuyển chủ đề vào thùng rác"
                       className={`p-1 rounded-lg transition shrink-0 cursor-pointer ${
                         isActive
                           ? 'bg-primary/10 text-primary hover:bg-primary/15'
@@ -247,6 +221,38 @@ export default function Sidebar({ isOpen, onClose, onOpenNewTopicModal, isNewTop
                 );
               })}
             </div>
+          </div>
+
+          <div className="mt-3 shrink-0 space-y-1">
+            <NavLink
+              to="/trash"
+              onClick={onClose}
+              className={({ isActive }) =>
+                `flex items-center gap-2.5 px-3 py-2 rounded-xl border text-xs transition-all ${
+                  isActive
+                    ? 'bg-primary/10 text-primary border-primary/20 dark:bg-primary/20 dark:text-primary-300 font-semibold'
+                    : 'bg-slate-50/80 dark:bg-slate-800/40 border-slate-200/60 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-primary/10 hover:text-primary hover:border-primary/20 dark:hover:bg-primary/20 dark:hover:text-primary-300'
+                }`
+              }
+            >
+              <Trash2 size={16} className="shrink-0" />
+              <span>Thùng rác</span>
+            </NavLink>
+
+            <NavLink
+              to="/settings"
+              onClick={onClose}
+              className={({ isActive }) =>
+                `flex items-center gap-2.5 px-3 py-2 rounded-xl border text-xs transition-all ${
+                  isActive
+                    ? 'bg-primary/10 text-primary border-primary/20 dark:bg-primary/20 dark:text-primary-300 font-semibold'
+                    : 'bg-slate-50/80 dark:bg-slate-800/40 border-slate-200/60 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-primary/10 hover:text-primary hover:border-primary/20 dark:hover:bg-primary/20 dark:hover:text-primary-300'
+                }`
+              }
+            >
+              <Settings size={16} className="shrink-0" />
+              <span>Cài đặt</span>
+            </NavLink>
           </div>
         </div>
 
