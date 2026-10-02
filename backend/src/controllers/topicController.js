@@ -3,6 +3,7 @@ const path = require('path');
 const { DATA_DIR, DEFAULT_USERNAME } = require('../config/constants');
 const { readJson, atomicWriteJson } = require('../utils/fileHelper');
 const { createSlug } = require('../utils/slugify');
+const { moveTopicToTrash } = require('../services/trashService');
 
 // Hàm lấy đường dẫn profile
 const getProfilePath = (username = DEFAULT_USERNAME) => {
@@ -58,17 +59,12 @@ const createTopic = async (req, res, next) => {
 
     const trimmedName = name.trim();
     const slug = createSlug(trimmedName);
+    if (!slug) {
+      return res.status(400).json({ success: false, message: 'Tên chủ đề không hợp lệ' });
+    }
 
     const notesDir = getNotesDir(username);
-    if (!fs.existsSync(notesDir)) {
-      fs.mkdirSync(notesDir, { recursive: true });
-    }
-
     const topicFilePath = path.join(notesDir, `${slug}.json`);
-    if (!fs.existsSync(topicFilePath)) {
-      await atomicWriteJson(topicFilePath, []);
-    }
-
     const profilePath = getProfilePath(username);
     let profileData;
     try {
@@ -77,17 +73,23 @@ const createTopic = async (req, res, next) => {
       profileData = {};
     }
 
-    if (!Array.isArray(profileData.topics)) {
-      profileData.topics = [];
+    const topics = Array.isArray(profileData.topics) ? profileData.topics : [];
+    const alreadyExists = topics.some(
+      (topic) =>
+        topic &&
+        (topic.slug === slug ||
+          (typeof topic.name === 'string' && createSlug(topic.name) === slug))
+    );
+    if (alreadyExists || fs.existsSync(topicFilePath)) {
+      return res.status(409).json({ success: false, message: 'Chủ đề đã tồn tại' });
     }
 
-    const existingIndex = profileData.topics.findIndex((t) => t.slug === slug);
-    if (existingIndex >= 0) {
-      profileData.topics[existingIndex].name = trimmedName;
-    } else {
-      profileData.topics.push({ slug, name: trimmedName });
+    if (!fs.existsSync(notesDir)) {
+      fs.mkdirSync(notesDir, { recursive: true });
     }
 
+    await atomicWriteJson(topicFilePath, []);
+    profileData.topics = [...topics, { slug, name: trimmedName }];
     await atomicWriteJson(profilePath, profileData);
 
     return res.status(201).json({
@@ -141,27 +143,12 @@ const deleteTopic = async (req, res, next) => {
   try {
     const { topicSlug } = req.params;
     const username = req.headers['x-username'] || DEFAULT_USERNAME;
-
-    const notesDir = getNotesDir(username);
-    const topicFilePath = path.join(notesDir, `${topicSlug}.json`);
-
-    if (fs.existsSync(topicFilePath)) {
-      fs.unlinkSync(topicFilePath);
-    }
-
-    const profilePath = getProfilePath(username);
-    try {
-      const profileData = await readJson(profilePath);
-      if (Array.isArray(profileData.topics)) {
-        profileData.topics = profileData.topics.filter((t) => t.slug !== topicSlug);
-        await atomicWriteJson(profilePath, profileData);
-      }
-    } catch (err) {
-      // bỏ qua
-    }
-
+    await moveTopicToTrash(username, topicSlug);
     return res.status(200).json({ success: true, message: 'Đã xóa chủ đề thành công' });
   } catch (error) {
+    if (error.status) {
+      return res.status(error.status).json({ success: false, message: error.message });
+    }
     next(error);
   }
 };

@@ -2,6 +2,7 @@ const path = require('path');
 const fs = require('fs/promises');
 const { DATA_DIR, DEFAULT_USERNAME } = require('../config/constants');
 const { readJson, atomicWriteJson } = require('../utils/fileHelper');
+const { moveNoteToTrash, removeTrashItem } = require('../services/trashService');
 
 // Lấy đường dẫn file note theo topicSlug
 const getTopicFilePath = (username, topicSlug) => {
@@ -249,14 +250,40 @@ const deleteNote = async (req, res, next) => {
     }
 
     const notes = await readJson(filePath);
-    const initialLength = notes.length;
-    const filteredNotes = notes.filter((n) => n.id !== id);
-
-    if (filteredNotes.length === initialLength) {
+    const noteIndex = notes.findIndex((note) => note.id === id);
+    if (noteIndex < 0) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy ghi chú để xóa' });
     }
 
-    await atomicWriteJson(filePath, filteredNotes);
+    let topicName;
+    try {
+      const profile = await readJson(path.join(DATA_DIR, 'users', username, 'profile.json'));
+      topicName = profile.topics?.find((topic) => topic.slug === topicSlug)?.name;
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw error;
+    }
+
+    const trashItem = await moveNoteToTrash(
+      username,
+      topicSlug,
+      notes[noteIndex],
+      noteIndex,
+      topicName
+    );
+    const filteredNotes = notes.filter((note) => note.id !== id);
+    try {
+      await atomicWriteJson(filePath, filteredNotes);
+    } catch (error) {
+      try {
+        await removeTrashItem(username, trashItem.id);
+      } catch (rollbackError) {
+        throw new AggregateError(
+          [error, rollbackError],
+          'Không thể hoàn tất hoặc hoàn tác việc chuyển ghi chú vào thùng rác'
+        );
+      }
+      throw error;
+    }
 
     return res.status(200).json({
       success: true,
