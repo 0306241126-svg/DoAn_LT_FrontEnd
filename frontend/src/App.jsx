@@ -36,7 +36,7 @@ export default function App() {
                   element={<PrivateNotesPage searchQuery={debouncedSearch} />}
                 />
                 <Route path="settings" element={<SettingsPage />} />
-                <Route path="trash" element={<TrashPage searchQuery={debouncedSearch} />} />
+                <Route path="trash" element={<TrashPage />} />
               </Route>
             </Routes>
           </ConfirmProvider>
