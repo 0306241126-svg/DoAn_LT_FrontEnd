@@ -1,494 +1,568 @@
-const path = require('path');
-const fs = require('fs/promises');
-const { DATA_DIR, DEFAULT_USERNAME } = require('../config/constants');
-const { readJson, atomicWriteJson } = require('../utils/fileHelper');
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { ArrowDownWideNarrow, BookOpenText, Check, ChevronDown, LayoutGrid, List, Plus } from 'lucide-react';
+import { useNotes } from '../context/NoteContext';
+import { useConfirm } from '../context/ConfirmContext';
+import { noteService } from '../services/noteService';
+import NoteCard from '../components/notes/NoteCard';
+import NoteFormModal from '../components/notes/NoteFormModal';
+import NoteViewModal from '../components/notes/NoteViewModal';
+import Button from '../components/common/Button';
+import LoadingSpinner from '../components/common/LoadingSpinner';
+import Toast from '../components/common/Toast';
 
-// Lấy đường dẫn file note theo topicSlug
-const getTopicFilePath = (username, topicSlug) => {
-  return path.join(DATA_DIR, 'users', username, 'notes', `${topicSlug}.json`);
+// Ghép chủ đề với ID để tránh trùng ID khi ghim ghi chú từ nhiều chủ đề.
+const getPinKey = (note) => `${note.topicSlug || 'unknown'}:${note.id}`;
+const EMPTY_NOTES = [];
+
+// Lấy key storage sau khi client render (tránh lỗi SSR/test)
+const getPinStorageKey = () => {
+	if (typeof window === 'undefined') return null;
+	return `pinnedNotes:${localStorage.getItem('app_username') || 'default_user'}`;
 };
 
-const getDeletedTopicSlugs = async (username) => {
-  const profilePath = path.join(DATA_DIR, 'users', username, 'profile.json');
-  try {
-    const profile = await readJson(profilePath);
-    return new Set(
-      Array.isArray(profile.topics)
-        ? profile.topics.filter((topic) => topic.deletedAt).map((topic) => topic.slug)
-        : []
-    );
-  } catch {
-    return new Set();
-  }
+// Dùng key cũ nếu key mới chưa có (migration)
+const getLegacyPinStorageKey = () => {
+	if (typeof window === 'undefined') return null;
+	return `pinned-notes:${localStorage.getItem('app_username') || 'default_user'}`;
 };
 
+function loadPinnedNotes(storageKey) {
+	if (!storageKey) return new Set();
+	try {
+		const storedNotes = JSON.parse(localStorage.getItem(storageKey) || '[]');
+		return new Set(Array.isArray(storedNotes) ? storedNotes : []);
+	} catch {
+		// Dữ liệu localStorage hỏng không được làm gián đoạn trang ghi chú.
+		return new Set();
+	}
+}
 
+// Migrate từ key cũ sang key mới nếu cần
+function migratePinnedNotes(newKey, legacyKey) {
+	if (!newKey || !legacyKey) return;
+	try {
+		const newData = localStorage.getItem(newKey);
+		if (!newData) {
+			const legacyData = localStorage.getItem(legacyKey);
+			if (legacyData) {
+				localStorage.setItem(newKey, legacyData);
+				localStorage.removeItem(legacyKey);
+			}
+		}
+	} catch (error) {
+		console.warn('Migration ghim ghi chú bị lỗi:', error);
+	}
+}
 
-// Add/update getAllNotes and getNotes in noteController.js
+function getErrorStatus(error) {
+	return error?.status || error?.response?.status;
+}
 
-const getAllNotes = async (req, res, next) => {
-  try {
-    const username = req.headers['x-username'] || DEFAULT_USERNAME;
-    const notesDir = path.join(DATA_DIR, 'users', username, 'notes');
-    const deletedTopicSlugs = await getDeletedTopicSlugs(username);
-    const { search } = req.query;
+function getErrorMessage(error) {
+	return error?.message || error?.response?.data?.message || 'Đã xảy ra lỗi. Vui lòng thử lại.';
+}
 
-    let files = [];
-    try {
-      files = await fs.readdir(notesDir);
-    } catch {
-      return res.status(200).json([]);
-    }
+function getDateValue(note) {
+	const value = new Date(note.updatedAt || note.createdAt || 0).getTime();
+	return Number.isNaN(value) ? 0 : value;
+}
 
-    const jsonFiles = files.filter((f) => f.endsWith('.json'));
-    let allNotes = [];
+export default function NotesPage({ searchQuery = '' }) {
+	const { topics, activeTopic, loading: isLoadingTopics } = useNotes();
+	const { confirm } = useConfirm() || {};
+	const [requestState, setRequestState] = useState({ key: '', notes: [], error: '' });
+	const [reloadKey, setReloadKey] = useState(0);
+	const [viewMode, setViewMode] = useState('grid');
+	const [sortOrder, setSortOrder] = useState('newest');
+	const [isSortMenuOpen, setIsSortMenuOpen] = useState(false);
+	const [sortMenuPosition, setSortMenuPosition] = useState({ left: 0, top: 0 });
+	const sortMenuRef = useRef(null);
+	const sortButtonRef = useRef(null);
+	const sortMenuContentRef = useRef(null);
+	const [pinnedNotes, setPinnedNotes] = useState(() => {
+		const newKey = getPinStorageKey();
+		const legacyKey = getLegacyPinStorageKey();
+		if (newKey && legacyKey) migratePinnedNotes(newKey, legacyKey);
+		return loadPinnedNotes(newKey);
+	});
+	const [isFormOpen, setIsFormOpen] = useState(false);
+	const [editingNote, setEditingNote] = useState(null);
+	const [viewedNote, setViewedNote] = useState(null);
+	const [toast, setToast] = useState(null);
 
-    for (const file of jsonFiles) {
-      const topicSlug = path.basename(file, '.json');
-      if (deletedTopicSlugs.has(topicSlug)) continue;
-      const filePath = path.join(notesDir, file);
-      
-      try {
-        const notes = await readJson(filePath);
-        if (Array.isArray(notes)) {
-          const notesWithTopic = notes
-            .filter((note) => !note.deletedAt)
-            .map((note) => ({ ...note, topicSlug }));
-          allNotes.push(...notesWithTopic);
-        }
-      } catch {
-        // Bỏ qua nếu đọc file lỗi
-      }
-    }
+	const normalizedSearchQuery = searchQuery.trim();
+	const topicKey = topics.map((topic) => topic.slug).join(',');
+	// Đổi key khi chủ đề hoặc danh sách chủ đề đổi để không hiển thị nhầm dữ liệu cũ.
+	const requestKey = `${activeTopic || ''}:${topicKey}:${normalizedSearchQuery}:${reloadKey}`;
 
-    // Lọc theo tìm kiếm nếu có
-    if (search && typeof search === 'string' && search.trim() !== '') {
-      const keyword = search.trim().toLowerCase();
-      allNotes = allNotes.filter(
-        (n) =>
-          (n.title && n.title.toLowerCase().includes(keyword)) ||
-          (n.content && n.content.toLowerCase().includes(keyword))
-      );
-    }
+	// Lưu ghim vào localStorage mỗi khi thay đổi
+	useEffect(() => {
+		const storageKey = getPinStorageKey();
+		if (storageKey) {
+			try {
+				localStorage.setItem(storageKey, JSON.stringify([...pinnedNotes]));
+			} catch (error) {
+				console.warn('Không thể lưu trạng thái ghim:', error);
+			}
+		}
+	}, [pinnedNotes]);
 
-    // Sắp xếp ghi chú mới nhất lên đầu
-    allNotes.sort(
-      (a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt)
-    );
+	useEffect(() => {
+		if (!isSortMenuOpen) return undefined;
 
-    return res.status(200).json(allNotes);
-  } catch (error) {
-    next(error);
-  }
-};
+		const closeOnOutsideClick = (event) => {
+			if (
+				!sortMenuRef.current?.contains(event.target) &&
+				!sortMenuContentRef.current?.contains(event.target)
+			) {
+				setIsSortMenuOpen(false);
+			}
+		};
+		const closeOnEscape = (event) => {
+			if (event.key === 'Escape') setIsSortMenuOpen(false);
+		};
 
-const getNotes = async (req, res, next) => {
-  try {
-    const { topicSlug } = req.params;
-    const { search } = req.query;
-    const username = req.headers['x-username'] || DEFAULT_USERNAME;
+		document.addEventListener('mousedown', closeOnOutsideClick);
+		document.addEventListener('keydown', closeOnEscape);
+		return () => {
+			document.removeEventListener('mousedown', closeOnOutsideClick);
+			document.removeEventListener('keydown', closeOnEscape);
+		};
+	}, [isSortMenuOpen]);
 
-    // TỰ ĐỘNG CHUYỂN HƯỚNG: Nếu slug là 'all', chuyển sang lấy tất cả ghi chú
-    if (topicSlug === 'all') {
-      return await getAllNotes(req, res, next);
-    }
+	useLayoutEffect(() => {
+		if (!isSortMenuOpen) return undefined;
 
-    if ((await getDeletedTopicSlugs(username)).has(topicSlug)) {
-      return res.status(404).json({ success: false, message: 'Chủ đề không tồn tại' });
-    }
+		const updateSortMenuPosition = () => {
+			const button = sortButtonRef.current;
+			const menu = sortMenuContentRef.current;
+			if (!button || !menu) return;
 
-    const filePath = getTopicFilePath(username, topicSlug);
+			const buttonRect = button.getBoundingClientRect();
+			const menuRect = menu.getBoundingClientRect();
+			const margin = 8;
+			const left = Math.max(
+				margin,
+				Math.min(buttonRect.right - menuRect.width, window.innerWidth - menuRect.width - margin)
+			);
+			const spaceBelow = window.innerHeight - buttonRect.bottom;
+			const top =
+				spaceBelow >= menuRect.height + 12
+					? buttonRect.bottom + 8
+					: Math.max(margin, buttonRect.top - menuRect.height - 8);
 
-    try {
-      await fs.access(filePath);
-    } catch {
-      return res.status(404).json({
-        success: false,
-        message: `Chủ đề '${topicSlug}' không tồn tại`
-      });
-    }
+			setSortMenuPosition({ left, top });
+		};
 
-    let notes = await readJson(filePath);
-    if (!Array.isArray(notes)) {
-      notes = [];
-    }
-    notes = notes.filter((note) => !note.deletedAt);
+		updateSortMenuPosition();
+		window.addEventListener('resize', updateSortMenuPosition);
+		window.addEventListener('scroll', updateSortMenuPosition, true);
+		return () => {
+			window.removeEventListener('resize', updateSortMenuPosition);
+			window.removeEventListener('scroll', updateSortMenuPosition, true);
+		};
+	}, [isSortMenuOpen]);
 
-    if (search && typeof search === 'string' && search.trim() !== '') {
-      const keyword = search.trim().toLowerCase();
-      notes = notes.filter(
-        (n) =>
-          (n.title && n.title.toLowerCase().includes(keyword)) ||
-          (n.content && n.content.toLowerCase().includes(keyword))
-      );
-    }
+	useEffect(() => {
+		let isCurrentRequest = true;
 
-    return res.status(200).json(notes);
-  } catch (error) {
-    next(error);
-  }
-};
+		// 'all' tải từng chủ đề; 404 chỉ có nghĩa chủ đề đó chưa có ghi chú.
+		const loadNotes = async () => {
+			try {
+				let loadedNotes = [];
 
-/**
- * GET /api/notes/all
- * Lấy tất cả ghi chú từ TẤT CẢ các chủ đề công khai (Không bao gồm ghi chú riêng tư)
-/**
- * GET /api/notes/:topicSlug/:id
- */
-const getNoteById = async (req, res, next) => {
-  try {
-    const { topicSlug, id } = req.params;
-    const username = req.headers['x-username'] || DEFAULT_USERNAME;
-    if ((await getDeletedTopicSlugs(username)).has(topicSlug)) {
-      return res.status(404).json({ success: false, message: 'Chủ đề không tồn tại' });
-    }
-    const filePath = getTopicFilePath(username, topicSlug);
+				if (activeTopic === 'all') {
+					const notesByTopic = await Promise.all(topics.map(async (topic) => {
+						try {
+							const topicNotes = await noteService.getNotes(topic.slug, normalizedSearchQuery);
+							return (Array.isArray(topicNotes) ? topicNotes : []).map((note) => ({
+								...note,
+								topicSlug: topic.slug,
+							}));
+						} catch (error) {
+							if (getErrorStatus(error) === 404) return [];
+							throw error;
+						}
+					}));
 
-    try {
-      await fs.access(filePath);
-    } catch {
-      return res.status(404).json({ success: false, message: 'Chủ đề không tồn tại' });
-    }
+					loadedNotes = notesByTopic.flat();
+				} else if (activeTopic) {
+					try {
+						const topicNotes = await noteService.getNotes(activeTopic, normalizedSearchQuery);
+						loadedNotes = (Array.isArray(topicNotes) ? topicNotes : []).map((note) => ({
+							...note,
+							topicSlug: activeTopic,
+						}));
+					} catch (error) {
+						if (getErrorStatus(error) !== 404) throw error;
+					}
+				}
 
-    const notes = await readJson(filePath);
-    const note = notes.find((n) => n.id === id && !n.deletedAt);
+				if (isCurrentRequest) setRequestState({ key: requestKey, notes: loadedNotes, error: '' });
+			} catch (error) {
+				if (isCurrentRequest) {
+					setRequestState({ key: requestKey, notes: [], error: getErrorMessage(error) });
+				}
+			}
+		};
 
-    if (!note) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy ghi chú' });
-    }
+		loadNotes();
+		return () => {
+			// Bỏ qua phản hồi muộn nếu người dùng đã chuyển chủ đề hoặc rời trang.
+			isCurrentRequest = false;
+		};
+	}, [activeTopic, topics, topicKey, normalizedSearchQuery, requestKey]);
 
-    return res.status(200).json(note);
-  } catch (error) {
-    next(error);
-  }
-};
+	const isLoading = isLoadingTopics || requestState.key !== requestKey;
+	const notes = requestState.key === requestKey ? requestState.notes : EMPTY_NOTES;
+	const loadError = requestState.key === requestKey ? requestState.error : '';
 
-/**
- * POST /api/notes/:topicSlug
- */
-const createNote = async (req, res, next) => {
-  try {
-    const { topicSlug } = req.params;
-    const { title, content } = req.body;
-    const username = req.headers['x-username'] || DEFAULT_USERNAME;
-    if ((await getDeletedTopicSlugs(username)).has(topicSlug)) {
-      return res.status(404).json({ success: false, message: 'Chủ đề không tồn tại' });
-    }
-    const filePath = getTopicFilePath(username, topicSlug);
+	// Ưu tiên ghi chú đã ghim trước, rồi mới áp dụng tiêu chí sắp xếp được chọn.
+	const sortedNotes = useMemo(() => [...notes].sort((first, second) => {
+		const firstPinned = pinnedNotes.has(getPinKey(first));
+		const secondPinned = pinnedNotes.has(getPinKey(second));
+		if (firstPinned !== secondPinned) return firstPinned ? -1 : 1;
 
-    if (!title || typeof title !== 'string' || title.trim() === '') {
-      return res.status(400).json({
-        success: false,
-        message: 'Tiêu đề ghi chú là bắt buộc'
-      });
-    }
+		// Xử lý an toàn khi title bị thiếu
+		if (sortOrder === 'oldest') return getDateValue(first) - getDateValue(second);
+		if (sortOrder === 'title') {
+			const firstTitle = (first.title || '').trim();
+			const secondTitle = (second.title || '').trim();
+			return firstTitle.localeCompare(secondTitle, 'vi', { sensitivity: 'base' });
+		}
+		return getDateValue(second) - getDateValue(first);
+	}), [notes, pinnedNotes, sortOrder]);
 
-    try {
-      await fs.access(filePath);
-    } catch {
-      return res.status(404).json({ success: false, message: 'Chủ đề không tồn tại' });
-    }
+	const activeTopicName = activeTopic === 'all'
+		? 'Tất cả ghi chú'
+		: topics.find((topic) => topic.slug === activeTopic)?.name || 'Ghi chú';
 
-    let notes = await readJson(filePath);
-    if (!Array.isArray(notes)) notes = [];
-    notes = notes.filter((note) => !note.deletedAt);
+	const togglePin = useCallback((note) => {
+		const key = getPinKey(note);
+		setPinnedNotes((current) => {
+			const next = new Set(current);
+			const willPin = !next.has(key);
+			if (next.has(key)) next.delete(key);
+			else next.add(key);
+			setToast({
+				message: willPin ? 'Đã ghim ghi chú.' : 'Đã bỏ ghim ghi chú.',
+				type: 'success',
+			});
+			return next;
+		});
+	}, []);
 
-    const nowIso = new Date().toISOString();
-    const newNote = {
-      id: `note-${Date.now()}`,
-      title: title.trim(),
-      content: typeof content === 'string' ? content : '',
-      createdAt: nowIso,
-      updatedAt: nowIso
-    };
+	const closeForm = useCallback(() => {
+		setIsFormOpen(false);
+		setEditingNote(null);
+	}, []);
 
-    notes.unshift(newNote);
-    await atomicWriteJson(filePath, notes);
+	const openCreateForm = useCallback(() => {
+		setEditingNote(null);
+		setIsFormOpen(true);
+	}, []);
 
-    return res.status(201).json({
-      success: true,
-      data: newNote
-    });
-  } catch (error) {
-    next(error);
-  }
-};
+	const openEditForm = useCallback((note) => {
+		setViewedNote(null);
+		setEditingNote(note);
+		setIsFormOpen(true);
+	}, []);
 
-/**
- * PUT /api/notes/:topicSlug/:id
- */
-const updateNote = async (req, res, next) => {
-  try {
-    const { topicSlug, id } = req.params;
-    const { title, content } = req.body;
-    const username = req.headers['x-username'] || DEFAULT_USERNAME;
-    if ((await getDeletedTopicSlugs(username)).has(topicSlug)) {
-      return res.status(404).json({ success: false, message: 'Chủ đề không tồn tại' });
-    }
-    const filePath = getTopicFilePath(username, topicSlug);
+	// Chọn API tạo/cập nhật từ dữ liệu form và cập nhật danh sách ngay sau khi thành công.
+	const saveNote = useCallback(async (noteData) => {
+		const targetTopic = noteData.topicSlug || (activeTopic !== 'all' ? activeTopic : '');
+		if (!targetTopic) throw new Error('Hãy chọn chủ đề cho ghi chú.');
 
-    if (!title || typeof title !== 'string' || title.trim() === '') {
-      return res.status(400).json({
-        success: false,
-        message: 'Tiêu đề ghi chú không được để trống'
-      });
-    }
+		if (editingNote) {
+			const updateResponse = await noteService.updateNote(targetTopic, editingNote.id, noteData);
+			const updatedNote = updateResponse?.data || updateResponse;
+			const savedNote = { ...updatedNote, topicSlug: targetTopic };
+			setRequestState((current) => current.key !== requestKey
+				? current
+				: {
+						...current,
+						notes: current.notes.map((note) => (
+							note.id === savedNote.id && note.topicSlug === editingNote.topicSlug ? savedNote : note
+						)),
+					});
+			setReloadKey((key) => key + 1);
+			setToast({ message: 'Đã cập nhật ghi chú.', type: 'success' });
+			closeForm();
+			return;
+		}
 
-    try {
-      await fs.access(filePath);
-    } catch {
-      return res.status(404).json({ success: false, message: 'Chủ đề không tồn tại' });
-    }
+		const createResponse = await noteService.createNote(targetTopic, noteData);
+		const createdNote = createResponse?.data || createResponse;
+		setRequestState((current) => current.key !== requestKey
+			? current
+			: { ...current, notes: [...current.notes, { ...createdNote, topicSlug: targetTopic }] });
+		setReloadKey((key) => key + 1);
+		setToast({ message: 'Đã tạo ghi chú.', type: 'success' });
+		closeForm();
+	}, [activeTopic, editingNote, requestKey, closeForm]);
 
-    const notes = await readJson(filePath);
-    const noteIndex = notes.findIndex((n) => n.id === id && !n.deletedAt);
+	const deleteNote = useCallback(async (noteId, topicSlug) => {
+		const note = notes.find((item) => item.id === noteId && item.topicSlug === topicSlug);
+		if (!note) return;
 
-    if (noteIndex === -1) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy ghi chú để sửa' });
-    }
+		// Xác nhận trước khi xóa để tránh mất ghi chú do thao tác nhầm.
+		const isConfirmed = confirm
+			? await confirm({
+					title: 'Chuyển ghi chú vào thùng rác',
+					message: `Ghi chú "${note.title}" sẽ được chuyển vào thùng rác và có thể khôi phục.`,
+					confirmText: 'Chuyển vào thùng rác',
+					cancelText: 'Hủy',
+					type: 'warning',
+				})
+			: window.confirm(`Chuyển ghi chú "${note.title}" vào thùng rác?`);
+		if (!isConfirmed) return;
 
-    const updatedNote = {
-      ...notes[noteIndex],
-      title: title.trim(),
-      content: typeof content === 'string' ? content : notes[noteIndex].content,
-      updatedAt: new Date().toISOString()
-    };
+		try {
+			await noteService.deleteNote(topicSlug, noteId);
+			setRequestState((current) => current.key !== requestKey
+				? current
+				: {
+						...current,
+						notes: current.notes.filter((item) => !(item.id === noteId && item.topicSlug === topicSlug)),
+					});
+			setPinnedNotes((current) => {
+				const next = new Set(current);
+				next.delete(getPinKey(note));
+				return next;
+			});
+			setViewedNote((current) => (
+				current?.id === noteId && current?.topicSlug === topicSlug ? null : current
+			));
+			setToast({ message: 'Đã chuyển ghi chú vào thùng rác.', type: 'success' });
+		} catch (error) {
+			setToast({ message: getErrorMessage(error), type: 'error' });
+		}
+	}, [confirm, notes, requestKey]);
 
-    notes[noteIndex] = updatedNote;
-    await atomicWriteJson(filePath, notes);
+	const currentViewedNote = viewedNote
+		? sortedNotes.find((note) => note.id === viewedNote.id && note.topicSlug === viewedNote.topicSlug) || null
+		: null;
+	const viewedNoteIndex = currentViewedNote
+		? sortedNotes.findIndex((note) => note.id === currentViewedNote.id && note.topicSlug === currentViewedNote.topicSlug)
+		: -1;
 
-    return res.status(200).json({
-      success: true,
-      data: updatedNote
-    });
-  } catch (error) {
-    next(error);
-  }
-};
+	// Điều hướng chỉ trong cùng topic để giữ UX nhất quán
+	const notesInCurrentTopic = sortedNotes.filter((note) => (
+		currentViewedNote ? note.topicSlug === currentViewedNote.topicSlug : false
+	));
+	const noteIndexInTopic = notesInCurrentTopic.findIndex(
+		(note) => currentViewedNote && note.id === currentViewedNote.id
+	);
 
-/**
- * DELETE /api/notes/:topicSlug/:id
- */
-const deleteNote = async (req, res, next) => {
-  try {
-    const { topicSlug, id } = req.params;
-    const username = req.headers['x-username'] || DEFAULT_USERNAME;
-    if ((await getDeletedTopicSlugs(username)).has(topicSlug)) {
-      return res.status(404).json({ success: false, message: 'Chủ đề không tồn tại' });
-    }
-    const filePath = getTopicFilePath(username, topicSlug);
+	const navigateViewedNote = useCallback((offset) => {
+		const nextNote = notesInCurrentTopic[noteIndexInTopic + offset];
+		if (nextNote) setViewedNote(nextNote);
+	}, [notesInCurrentTopic, noteIndexInTopic]);
 
-    try {
-      await fs.access(filePath);
-    } catch {
-      return res.status(404).json({ success: false, message: 'Chủ đề không tồn tại' });
-    }
+	return (
+		<section className="mx-auto w-full max-w-7xl space-y-6" aria-labelledby="notes-heading">
+			<header className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
+				<div className="min-w-0">
+					<h1 id="notes-heading" className="truncate text-2xl font-bold text-slate-800 dark:text-slate-100">
+						{activeTopicName}
+					</h1>
+					<p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+						{notes.length} ghi chú
+					</p>
+				</div>
+				<div className="flex flex-wrap items-center gap-2">
+					<div ref={sortMenuRef} className="relative">
+						<button
+							ref={sortButtonRef}
+							type="button"
+							aria-label="Sắp xếp ghi chú"
+							aria-haspopup="listbox"
+							aria-expanded={isSortMenuOpen}
+							onClick={() => setIsSortMenuOpen((open) => !open)}
+							className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-slate-500 shadow-sm transition hover:border-primary/30 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:hover:bg-slate-800/80"
+						>
+							<ArrowDownWideNarrow size={15} aria-hidden="true" />
+							<span className="text-xs font-medium text-slate-700 dark:text-slate-200">
+								{sortOrder === 'newest' ? 'Mới nhất' : sortOrder === 'oldest' ? 'Cũ nhất' : 'Tên A-Z'}
+							</span>
+							<ChevronDown
+								size={14}
+								className={`transition-transform ${isSortMenuOpen ? 'rotate-180' : ''}`}
+								aria-hidden="true"
+							/>
+						</button>
+					</div>
 
-    const notes = await readJson(filePath);
-    const noteIndex = notes.findIndex((note) => note.id === id && !note.deletedAt);
+					{isSortMenuOpen &&
+						createPortal(
+							<div
+								ref={sortMenuContentRef}
+								role="listbox"
+								aria-label="Sắp xếp ghi chú"
+								style={{
+									position: 'fixed',
+									left: sortMenuPosition.left,
+									top: sortMenuPosition.top,
+									visibility: sortMenuPosition.left ? 'visible' : 'hidden',
+								}}
+								className="z-[70] w-44 overflow-hidden rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl shadow-slate-900/10 ring-1 ring-black/5 dark:border-slate-700 dark:bg-slate-900 dark:shadow-black/30 dark:ring-white/5"
+							>
+								{[
+									{ value: 'newest', label: 'Mới nhất' },
+									{ value: 'oldest', label: 'Cũ nhất' },
+									{ value: 'title', label: 'Tên A-Z' },
+								].map((option) => (
+									<button
+										key={option.value}
+										type="button"
+										role="option"
+										aria-selected={sortOrder === option.value}
+										onClick={() => {
+											setSortOrder(option.value);
+											setIsSortMenuOpen(false);
+										}}
+										className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-xs transition ${
+											sortOrder === option.value
+												? 'bg-primary/10 font-semibold text-primary'
+												: 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
+										}`}
+									>
+										{option.label}
+										{sortOrder === option.value && <Check size={14} aria-hidden="true" />}
+									</button>
+								))}
+							</div>,
+							document.body
+						)}
 
-    if (noteIndex === -1) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy ghi chú để xóa' });
-    }
+					<div className="flex h-10 items-center rounded-xl border border-slate-200 bg-white p-1 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+						<button
+							type="button"
+							onClick={() => setViewMode('grid')}
+							aria-label="Hiển thị dạng lưới"
+							aria-pressed={viewMode === 'grid'}
+							title="Dạng lưới"
+							className={`flex h-8 w-8 items-center justify-center rounded-lg transition ${
+								viewMode === 'grid'
+									? 'bg-primary/10 text-primary'
+									: 'text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+							}`}
+						>
+							<LayoutGrid size={16} aria-hidden="true" />
+						</button>
+						<button
+							type="button"
+							onClick={() => setViewMode('list')}
+							aria-label="Hiển thị dạng danh sách"
+							aria-pressed={viewMode === 'list'}
+							title="Dạng danh sách"
+							className={`flex h-8 w-8 items-center justify-center rounded-lg transition ${
+								viewMode === 'list'
+									? 'bg-primary/10 text-primary'
+									: 'text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+							}`}
+						>
+							<List size={16} aria-hidden="true" />
+						</button>
+					</div>
 
-    notes[noteIndex].deletedAt = new Date().toISOString();
-    await atomicWriteJson(filePath, notes);
+					<Button onClick={openCreateForm} disabled={topics.length === 0}>
+						<Plus size={17} aria-hidden="true" />
+						Thêm ghi chú
+					</Button>
+				</div>
+			</header>
 
-    return res.status(200).json({
-      success: true,
-      message: 'Đã chuyển ghi chú vào thùng rác'
-    });
-  } catch (error) {
-    next(error);
-  }
-};
+			{loadError && (
+				<div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-200">
+					<span>{loadError}</span>
+					<Button variant="outline" size="sm" onClick={() => setReloadKey((key) => key + 1)}>
+						Thử lại
+					</Button>
+				</div>
+			)}
 
-const getTrashNotes = async (req, res, next) => {
-  try {
-    const username = req.headers['x-username'] || DEFAULT_USERNAME;
-    const notesDir = path.join(DATA_DIR, 'users', username, 'notes');
-    const profilePath = path.join(DATA_DIR, 'users', username, 'profile.json');
-    const deletedTopicSlugs = await getDeletedTopicSlugs(username);
-    let files = [];
+			{isLoading ? (
+				<div className="flex min-h-[40vh] items-center justify-center" role="status" aria-label="Đang tải ghi chú">
+					<LoadingSpinner size="lg" className="text-primary" />
+				</div>
+			) : loadError ? null : sortedNotes.length > 0 ? (
+				// Lưới tự chuyển 1 cột trên mobile, 2 cột trên tablet và 3 cột trên màn hình lớn.
+				<div className={viewMode === 'grid'
+					? 'grid grid-cols-1 items-stretch gap-4 sm:grid-cols-2 xl:grid-cols-3'
+					: 'grid grid-cols-1 gap-3'}>
+					{sortedNotes.map((note) => {
+						const topicName = topics.find((topic) => topic.slug === note.topicSlug)?.name;
+						return (
+							<NoteCard
+								key={getPinKey(note)}
+								note={note}
+								topicName={topicName}
+								showTopicBadge={activeTopic === 'all'}
+								isPinned={pinnedNotes.has(getPinKey(note))}
+								onTogglePin={togglePin}
+								onOpen={setViewedNote}
+								onEdit={openEditForm}
+								onDelete={deleteNote}
+								viewMode={viewMode}
+							/>
+						);
+					})}
+				</div>
+			) : (
+				<div className="flex min-h-[42vh] w-full flex-col items-center justify-center px-4 py-10 text-center">
+					<div className="mb-5 grid size-16 place-items-center rounded-2xl bg-primary/10 text-primary">
+						<BookOpenText size={30} strokeWidth={1.6} aria-hidden="true" />
+					</div>
+					<h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Chưa có ghi chú nào</h2>
+					<p className="mt-2 max-w-sm text-sm leading-6 text-slate-500 dark:text-slate-400">
+						{topics.length > 0
+							? `Bắt đầu lưu lại ý tưởng trong ${activeTopic === 'all' ? 'các chủ đề của bạn' : `chủ đề ${activeTopicName}`}.`
+							: 'Hãy tạo chủ đề trước để bắt đầu lưu ghi chú.'}
+					</p>
+					{topics.length > 0 && (
+						<Button onClick={openCreateForm} className="mt-5">
+							<Plus size={17} aria-hidden="true" />
+							Tạo ghi chú đầu tiên
+						</Button>
+					)}
+				</div>
+			)}
 
-    try {
-      files = (await fs.readdir(notesDir)).filter((file) => file.endsWith('.json'));
-    } catch {
-      files = [];
-    }
+			<NoteFormModal
+				isOpen={isFormOpen}
+				initialData={editingNote}
+				onClose={closeForm}
+				onSave={saveNote}
+				topics={topics}
+				// Khi xem tất cả chủ đề, form tạo mới cần cho chọn nơi lưu ghi chú.
+				showTopicSelector={activeTopic === 'all' && !editingNote}
+				defaultTopicSlug={activeTopic === 'all' ? topics[0]?.slug || '' : activeTopic}
+			/>
 
-    const trashNotes = [];
-    for (const file of files) {
-      const topicSlug = path.basename(file, '.json');
-      if (deletedTopicSlugs.has(topicSlug)) continue;
-      try {
-        const notes = await readJson(path.join(notesDir, file));
-        if (Array.isArray(notes)) {
-          trashNotes.push(...notes
-            .filter((note) => note.deletedAt)
-            .map((note) => ({ ...note, type: 'note', topicSlug })));
-        }
-      } catch {
-        // Bỏ qua file chủ đề không đọc được.
-      }
-    }
+			{currentViewedNote && (
+				<NoteViewModal
+					note={currentViewedNote}
+					topicName={topics.find((topic) => topic.slug === currentViewedNote.topicSlug)?.name}
+					isPinned={pinnedNotes.has(getPinKey(currentViewedNote))}
+					onTogglePin={togglePin}
+					onClose={() => setViewedNote(null)}
+					onEdit={openEditForm}
+					onDelete={deleteNote}
+					onNavigate={navigateViewedNote}
+					canGoPrevious={noteIndexInTopic > 0}
+					canGoNext={noteIndexInTopic >= 0 && noteIndexInTopic < notesInCurrentTopic.length - 1}
+				/>
+			)}
 
-    try {
-      const profile = await readJson(profilePath);
-      const deletedTopics = Array.isArray(profile.topics)
-        ? profile.topics.filter((topic) => topic.deletedAt)
-        : [];
-      for (const topic of deletedTopics) {
-        let noteCount = 0;
-        try {
-          const topicNotes = await readJson(getTopicFilePath(username, topic.slug));
-          noteCount = Array.isArray(topicNotes) ? topicNotes.length : 0;
-        } catch {
-          // The topic can still be removed if its notes file is missing.
-        }
-        trashNotes.push({
-          type: 'topic',
-          slug: topic.slug,
-          title: topic.name,
-          deletedAt: topic.deletedAt,
-          noteCount,
-        });
-      }
-    } catch {
-      // Ignore an unreadable profile.
-    }
-
-    trashNotes.sort((first, second) => new Date(second.deletedAt) - new Date(first.deletedAt));
-    return res.status(200).json(trashNotes);
-  } catch (error) {
-    next(error);
-  }
-};
-
-const restoreNote = async (req, res, next) => {
-  try {
-    const { topicSlug, id } = req.params;
-    const username = req.headers['x-username'] || DEFAULT_USERNAME;
-    if ((await getDeletedTopicSlugs(username)).has(topicSlug)) {
-      return res.status(404).json({ success: false, message: 'Hãy khôi phục chủ đề trước' });
-    }
-    const filePath = getTopicFilePath(username, topicSlug);
-    let notes;
-
-    try {
-      notes = await readJson(filePath);
-    } catch {
-      return res.status(404).json({ success: false, message: 'Chủ đề gốc không còn tồn tại' });
-    }
-
-    const note = Array.isArray(notes) ? notes.find((item) => item.id === id && item.deletedAt) : null;
-    if (!note) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy ghi chú trong thùng rác' });
-    }
-
-    delete note.deletedAt;
-    await atomicWriteJson(filePath, notes);
-    return res.status(200).json({ success: true, data: { ...note, topicSlug } });
-  } catch (error) {
-    next(error);
-  }
-};
-
-const permanentlyDeleteNote = async (req, res, next) => {
-  try {
-    const { topicSlug, id } = req.params;
-    const username = req.headers['x-username'] || DEFAULT_USERNAME;
-    if ((await getDeletedTopicSlugs(username)).has(topicSlug)) {
-      return res.status(404).json({ success: false, message: 'Hãy xử lý chủ đề trong thùng rác trước' });
-    }
-    const filePath = getTopicFilePath(username, topicSlug);
-    let notes;
-
-    try {
-      notes = await readJson(filePath);
-    } catch {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy ghi chú trong thùng rác' });
-    }
-
-    const filteredNotes = Array.isArray(notes)
-      ? notes.filter((note) => !(note.id === id && note.deletedAt))
-      : [];
-    if (filteredNotes.length === (Array.isArray(notes) ? notes.length : 0)) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy ghi chú trong thùng rác' });
-    }
-
-    await atomicWriteJson(filePath, filteredNotes);
-    return res.status(200).json({ success: true, message: 'Đã xóa ghi chú vĩnh viễn' });
-  } catch (error) {
-    next(error);
-  }
-};
-
-const emptyTrash = async (req, res, next) => {
-  try {
-    const username = req.headers['x-username'] || DEFAULT_USERNAME;
-    const notesDir = path.join(DATA_DIR, 'users', username, 'notes');
-    const profilePath = path.join(DATA_DIR, 'users', username, 'profile.json');
-    const deletedTopicSlugs = await getDeletedTopicSlugs(username);
-    let files = [];
-
-    try {
-      files = (await fs.readdir(notesDir)).filter((file) => file.endsWith('.json'));
-    } catch {
-      files = [];
-    }
-
-    let deletedCount = 0;
-    for (const file of files) {
-      const filePath = path.join(notesDir, file);
-      const topicSlug = path.basename(file, '.json');
-      if (deletedTopicSlugs.has(topicSlug)) {
-        try {
-          await fs.unlink(filePath);
-        } catch {
-          // Ignore a topic file that cannot be removed.
-        }
-        continue;
-      }
-      try {
-        const notes = await readJson(filePath);
-        if (!Array.isArray(notes)) continue;
-        const activeNotes = notes.filter((note) => !note.deletedAt);
-        deletedCount += notes.length - activeNotes.length;
-        if (activeNotes.length !== notes.length) await atomicWriteJson(filePath, activeNotes);
-      } catch {
-        // Bỏ qua file chủ đề không đọc được.
-      }
-    }
-
-    if (deletedTopicSlugs.size > 0) {
-      try {
-        const profile = await readJson(profilePath);
-        if (Array.isArray(profile.topics)) {
-          profile.topics = profile.topics.filter((topic) => !deletedTopicSlugs.has(topic.slug));
-          await atomicWriteJson(profilePath, profile);
-          deletedCount += deletedTopicSlugs.size;
-        }
-      } catch {
-        // Ignore an unreadable profile.
-      }
-    }
-
-    return res.status(200).json({ success: true, deletedCount });
-  } catch (error) {
-    next(error);
-  }
-};
-
-module.exports = {
-  getAllNotes,
-  getNotes,
-  getNoteById,
-  createNote,
-  updateNote,
-  deleteNote,
-  getTrashNotes,
-  restoreNote,
-  permanentlyDeleteNote,
-  emptyTrash
-};
+			{toast && (
+				<Toast
+					message={toast.message}
+					type={toast.type}
+					onClose={() => setToast(null)}
+				/>
+			)}
+		</section>
+	);
+}
