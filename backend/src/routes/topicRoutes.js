@@ -6,16 +6,12 @@ const {
   getTopics, 
   createTopic, 
   updateTopic, 
-  deleteTopic,
-  restoreTopic,
-  permanentlyDeleteTopic,
+  deleteTopic 
 } = require('../controllers/topicController');
 
 // Khai báo các API routes
 router.get('/', getTopics);
 router.post('/', createTopic);
-router.post('/trash/:topicSlug/restore', restoreTopic);
-router.delete('/trash/:topicSlug/permanent', permanentlyDeleteTopic);
 router.put('/:topicSlug', updateTopic);
 router.delete('/:topicSlug', deleteTopic);
 
