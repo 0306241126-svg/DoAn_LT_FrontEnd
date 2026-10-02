@@ -275,7 +275,8 @@ export default function NotesPage({ searchQuery = '' }) {
 		if (!targetTopic) throw new Error('Hãy chọn chủ đề cho ghi chú.');
 
 		if (editingNote) {
-			const updatedNote = await noteService.updateNote(targetTopic, editingNote.id, noteData);
+			const updateResponse = await noteService.updateNote(targetTopic, editingNote.id, noteData);
+			const updatedNote = updateResponse?.data || updateResponse;
 			const savedNote = { ...updatedNote, topicSlug: targetTopic };
 			setRequestState((current) => current.key !== requestKey
 				? current
@@ -285,15 +286,18 @@ export default function NotesPage({ searchQuery = '' }) {
 							note.id === savedNote.id && note.topicSlug === editingNote.topicSlug ? savedNote : note
 						)),
 					});
+			setReloadKey((key) => key + 1);
 			setToast({ message: 'Đã cập nhật ghi chú.', type: 'success' });
 			closeForm();
 			return;
 		}
 
-		const createdNote = await noteService.createNote(targetTopic, noteData);
+		const createResponse = await noteService.createNote(targetTopic, noteData);
+		const createdNote = createResponse?.data || createResponse;
 		setRequestState((current) => current.key !== requestKey
 			? current
 			: { ...current, notes: [...current.notes, { ...createdNote, topicSlug: targetTopic }] });
+		setReloadKey((key) => key + 1);
 		setToast({ message: 'Đã tạo ghi chú.', type: 'success' });
 		closeForm();
 	}, [activeTopic, editingNote, requestKey, closeForm]);
@@ -305,13 +309,13 @@ export default function NotesPage({ searchQuery = '' }) {
 		// Xác nhận trước khi xóa để tránh mất ghi chú do thao tác nhầm.
 		const isConfirmed = confirm
 			? await confirm({
-					title: 'Xóa ghi chú',
-					message: `Bạn có chắc muốn xóa ghi chú "${note.title}" không?`,
-					confirmText: 'Xóa ghi chú',
-					cancelText: 'Giữ lại',
-					type: 'danger',
+					title: 'Chuyển ghi chú vào thùng rác',
+					message: `Ghi chú "${note.title}" sẽ được chuyển vào thùng rác và có thể khôi phục.`,
+					confirmText: 'Chuyển vào thùng rác',
+					cancelText: 'Hủy',
+					type: 'warning',
 				})
-			: window.confirm(`Bạn có chắc muốn xóa ghi chú "${note.title}" không?`);
+			: window.confirm(`Chuyển ghi chú "${note.title}" vào thùng rác?`);
 		if (!isConfirmed) return;
 
 		try {
@@ -322,10 +326,15 @@ export default function NotesPage({ searchQuery = '' }) {
 						...current,
 						notes: current.notes.filter((item) => !(item.id === noteId && item.topicSlug === topicSlug)),
 					});
+			setPinnedNotes((current) => {
+				const next = new Set(current);
+				next.delete(getPinKey(note));
+				return next;
+			});
 			setViewedNote((current) => (
 				current?.id === noteId && current?.topicSlug === topicSlug ? null : current
 			));
-			setToast({ message: 'Đã xóa ghi chú.', type: 'success' });
+			setToast({ message: 'Đã chuyển ghi chú vào thùng rác.', type: 'success' });
 		} catch (error) {
 			setToast({ message: getErrorMessage(error), type: 'error' });
 		}
