@@ -379,7 +379,7 @@ export default function NoteFormModal({
               <Button type="button" variant="secondary" size="sm" onClick={onClose}>
                 Hủy
               </Button>
-              <Button type="submit" size="sm" loading={loading} className="bg-gradient-to-r from-primary to-violet-600 shadow-sm shadow-primary/20">
+              <Button type="submit" size="sm" loading={loading}>
                 {initialData ? 'Cập nhật' : 'Lưu ghi chú'}
               </Button>
             </div>

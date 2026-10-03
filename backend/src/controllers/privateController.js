@@ -27,7 +27,7 @@ const setupPassword = async (req, res, next) => {
 
     const profile = await readJson(profilePath);
     if (profile.privatePasswordHash) {
-      return res.status(400).json({
+      return res.status(409).json({
         success: false,
         message: 'Mật khẩu đã được thiết lập trước đó. Vui lòng chọn đổi mật khẩu'
       });

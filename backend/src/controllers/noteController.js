@@ -275,7 +275,7 @@ const deleteNote = async (req, res, next) => {
       await atomicWriteJson(filePath, filteredNotes);
     } catch (error) {
       try {
-        await removeTrashItem(username, trashItem.id);
+        await removeTrashItem(username, 'note', trashItem.id);
       } catch (rollbackError) {
         throw new AggregateError(
           [error, rollbackError],

@@ -7,13 +7,25 @@ import Input from '../common/Input';
 import Button from '../common/Button';
 import { useNotes } from '../../context/NoteContext';
 
+const createTopicSlug = (value) =>
+  value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[đĐ]/g, 'd')
+    .replace(/([^0-9a-z-\s])/g, '')
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-');
+
 export default function MainLayout({ searchValue, onSearchChange }) {
   const { isUnlocked } = useAuthPrivate();
-  const { addTopic } = useNotes();
+  const { topics, addTopic } = useNotes();
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showTopicModal, setShowTopicModal] = useState(false);
   const [newTopicName, setNewTopicName] = useState('');
+  const [topicError, setTopicError] = useState('');
   const [remainingTime, setRemainingTime] = useState('15:00');
 
   useEffect(() => {
@@ -34,13 +46,27 @@ export default function MainLayout({ searchValue, onSearchChange }) {
 
   const handleCreateTopic = async (e) => {
     e.preventDefault();
-    if (!newTopicName.trim()) return;
+    const trimmedName = newTopicName.trim();
+    if (!trimmedName) return;
+
+    const slug = createTopicSlug(trimmedName);
+    const alreadyExists = topics.some(
+      (topic) =>
+        topic.slug === slug ||
+        (typeof topic.name === 'string' && createTopicSlug(topic.name) === slug)
+    );
+    if (alreadyExists) {
+      setTopicError('Chủ đề đã tồn tại');
+      return;
+    }
+
     try {
-      await addTopic(newTopicName);
+      await addTopic(trimmedName);
       setNewTopicName('');
+      setTopicError('');
       setShowTopicModal(false);
     } catch (err) {
-      alert(err.message || 'Lỗi tạo chủ đề');
+      setTopicError(err.message || 'Lỗi tạo chủ đề');
     }
   };
 
@@ -78,11 +104,27 @@ export default function MainLayout({ searchValue, onSearchChange }) {
                 label="Tên chủ đề"
                 placeholder="Ví dụ: Đồ án tốt nghiệp"
                 value={newTopicName}
-                onChange={(e) => setNewTopicName(e.target.value)}
+                onChange={(e) => {
+                  setNewTopicName(e.target.value);
+                  setTopicError('');
+                }}
                 autoFocus
               />
+              {topicError && (
+                <p role="alert" className="text-sm text-rose-600 dark:text-rose-400">
+                  {topicError}
+                </p>
+              )}
               <div className="flex justify-end gap-2">
-                <Button variant="secondary" onClick={() => setShowTopicModal(false)}>Hủy</Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setShowTopicModal(false);
+                    setTopicError('');
+                  }}
+                >
+                  Hủy
+                </Button>
                 <Button type="submit">Tạo chủ đề</Button>
               </div>
             </form>

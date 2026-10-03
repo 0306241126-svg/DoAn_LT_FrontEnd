@@ -4,6 +4,7 @@ import { Plus, Folder, Lock, Unlock, Settings, ChevronRight, Trash2, X, Shield, 
 import { useNotes } from '../../context/NoteContext';
 import { useAuthPrivate } from '../../context/AuthPrivateContext';
 import { useConfirm } from '../../context/ConfirmContext';
+import { noteService } from '../../services/noteService';
 
 export default function Sidebar({ isOpen, onClose, onOpenNewTopicModal, isNewTopicModalOpen }) {
   const { topics, activeTopic, setActiveTopic, removeTopic } = useNotes();
@@ -13,9 +14,19 @@ export default function Sidebar({ isOpen, onClose, onOpenNewTopicModal, isNewTop
 
   const handleDeleteTopic = async (e, topic) => {
     e.stopPropagation();
+    let noteCount;
+    try {
+      const notes = await noteService.getNotes(topic.slug);
+      if (!Array.isArray(notes)) throw new Error('Dữ liệu ghi chú của chủ đề không hợp lệ');
+      noteCount = notes.length;
+    } catch (error) {
+      window.alert(error.message || 'Không thể kiểm tra số ghi chú trong chủ đề');
+      return;
+    }
+
     const isOk = await confirm({
       title: 'Chuyển chủ đề vào thùng rác',
-      message: `Chủ đề "${topic.name}" cùng tất cả ghi chú bên trong sẽ được chuyển vào thùng rác và có thể khôi phục.`,
+      message: `Chủ đề '${topic.name}' hiện đang có ${noteCount} ghi chú. Bạn có chắc chắn muốn chuyển chủ đề cùng ${noteCount} ghi chú này vào Thùng rác không?`,
       confirmText: 'Chuyển vào thùng rác',
       cancelText: 'Hủy',
       type: 'warning',
@@ -89,7 +100,7 @@ export default function Sidebar({ isOpen, onClose, onOpenNewTopicModal, isNewTop
             </button>
           </div>
 
-          {/* NHÓM 1: HỆ THỐNG (Vùng riêng tư + Cài đặt) */}
+          {/* NHÓM 1: HỆ THỐNG (Vùng riêng tư) */}
           <div className="space-y-1 mb-3 shrink-0">
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2 mb-1.5">
               Hệ thống
@@ -126,7 +137,6 @@ export default function Sidebar({ isOpen, onClose, onOpenNewTopicModal, isNewTop
               </div>
               <ChevronRight size={14} className="opacity-50 shrink-0 group-hover:translate-x-0.5 transition-transform" />
             </NavLink>
-
           </div>
 
           {/* Đường phân cách nhẹ */}
@@ -158,7 +168,7 @@ export default function Sidebar({ isOpen, onClose, onOpenNewTopicModal, isNewTop
               </span>
             </div>
 
-            <div className="space-y-1 overflow-y-auto flex-1 pr-1 custom-scrollbar">
+            <div className="space-y-1 overflow-y-auto flex-1 pr-1 custom-scrollbar mb-2">
               {/* Chọn "all" để hiển thị ghi chú thuộc mọi chủ đề */}
               <div
                 onClick={() => handleSelectTopic('all')}
@@ -223,7 +233,8 @@ export default function Sidebar({ isOpen, onClose, onOpenNewTopicModal, isNewTop
             </div>
           </div>
 
-          <div className="mt-3 shrink-0 space-y-1">
+          {/* NHÓM 3: TIỆN ÍCH CUỐI BẢNG (Thùng rác & Cài đặt) */}
+          <div className="mt-2 shrink-0 space-y-1 border-t border-slate-100 pt-3 dark:border-slate-800/80">
             <NavLink
               to="/trash"
               onClick={onClose}
