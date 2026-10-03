@@ -4,6 +4,7 @@ import { Plus, Folder, Lock, Unlock, Settings, ChevronRight, Trash2, X, Shield, 
 import { useNotes } from '../../context/NoteContext';
 import { useAuthPrivate } from '../../context/AuthPrivateContext';
 import { useConfirm } from '../../context/ConfirmContext';
+import { noteService } from '../../services/noteService';
 
 export default function Sidebar({ isOpen, onClose, onOpenNewTopicModal, isNewTopicModalOpen }) {
   const { topics, activeTopic, setActiveTopic, removeTopic } = useNotes();
@@ -13,16 +14,30 @@ export default function Sidebar({ isOpen, onClose, onOpenNewTopicModal, isNewTop
 
   const handleDeleteTopic = async (e, topic) => {
     e.stopPropagation();
+    let noteCount;
+    try {
+      const notes = await noteService.getNotes(topic.slug);
+      if (!Array.isArray(notes)) throw new Error('Dữ liệu ghi chú của chủ đề không hợp lệ');
+      noteCount = notes.length;
+    } catch (error) {
+      window.alert(error.message || 'Không thể kiểm tra số ghi chú trong chủ đề');
+      return;
+    }
+
     const isOk = await confirm({
-      title: 'Xóa chủ đề',
-      message: `Bạn có chắc muốn xóa chủ đề "${topic.name}" cùng tất cả ghi chú bên trong không?`,
-      confirmText: 'Xác nhận xóa',
-      cancelText: 'Giữ lại',
-      type: 'danger',
+      title: 'Chuyển chủ đề vào thùng rác',
+      message: `Chủ đề '${topic.name}' hiện đang có ${noteCount} ghi chú. Bạn có chắc chắn muốn chuyển chủ đề cùng ${noteCount} ghi chú này vào Thùng rác không?`,
+      confirmText: 'Chuyển vào thùng rác',
+      cancelText: 'Hủy',
+      type: 'warning',
     });
 
     if (isOk) {
-      removeTopic(topic.slug);
+      try {
+        await removeTopic(topic.slug);
+      } catch (error) {
+        window.alert(error.message || 'Không thể chuyển chủ đề vào thùng rác');
+      }
     }
   };
 
@@ -85,7 +100,7 @@ export default function Sidebar({ isOpen, onClose, onOpenNewTopicModal, isNewTop
             </button>
           </div>
 
-          {/* NHÓM 1: HỆ THỐNG (Vùng riêng tư + Cài đặt) */}
+          {/* NHÓM 1: HỆ THỐNG (Vùng riêng tư) */}
           <div className="space-y-1 mb-3 shrink-0">
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2 mb-1.5">
               Hệ thống
@@ -122,22 +137,6 @@ export default function Sidebar({ isOpen, onClose, onOpenNewTopicModal, isNewTop
               </div>
               <ChevronRight size={14} className="opacity-50 shrink-0 group-hover:translate-x-0.5 transition-transform" />
             </NavLink>
-
-            {/* Cài đặt */}
-            <NavLink
-              to="/settings"
-              onClick={onClose}
-              className={({ isActive }) =>
-                `flex items-center gap-2.5 px-3 py-2 rounded-xl border text-xs transition-all ${
-                  isActive
-                    ? 'bg-primary/10 text-primary border-primary/20 dark:bg-primary/20 dark:text-primary-300 font-semibold'
-                    : 'bg-slate-50/80 dark:bg-slate-800/40 border-slate-200/60 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-primary/10 hover:text-primary hover:border-primary/20 dark:hover:bg-primary/20 dark:hover:text-primary-300'
-                }`
-              }
-            >
-              <Settings size={16} className="shrink-0" />
-              <span>Cài đặt</span>
-            </NavLink>
           </div>
 
           {/* Đường phân cách nhẹ */}
@@ -169,7 +168,7 @@ export default function Sidebar({ isOpen, onClose, onOpenNewTopicModal, isNewTop
               </span>
             </div>
 
-            <div className="space-y-1 overflow-y-auto flex-1 pr-1 custom-scrollbar">
+            <div className="space-y-1 overflow-y-auto flex-1 pr-1 custom-scrollbar mb-2">
               {/* Chọn "all" để hiển thị ghi chú thuộc mọi chủ đề */}
               <div
                 onClick={() => handleSelectTopic('all')}
@@ -219,7 +218,7 @@ export default function Sidebar({ isOpen, onClose, onOpenNewTopicModal, isNewTop
                     <button
                       type="button"
                       onClick={(e) => handleDeleteTopic(e, topic)}
-                      title="Xóa chủ đề"
+                      title="Chuyển chủ đề vào thùng rác"
                       className={`p-1 rounded-lg transition shrink-0 cursor-pointer ${
                         isActive
                           ? 'bg-primary/10 text-primary hover:bg-primary/15'
@@ -232,6 +231,39 @@ export default function Sidebar({ isOpen, onClose, onOpenNewTopicModal, isNewTop
                 );
               })}
             </div>
+          </div>
+
+          {/* NHÓM 3: TIỆN ÍCH CUỐI BẢNG (Thùng rác & Cài đặt) */}
+          <div className="mt-2 shrink-0 space-y-1 border-t border-slate-100 pt-3 dark:border-slate-800/80">
+            <NavLink
+              to="/trash"
+              onClick={onClose}
+              className={({ isActive }) =>
+                `flex items-center gap-2.5 px-3 py-2 rounded-xl border text-xs transition-all ${
+                  isActive
+                    ? 'bg-primary/10 text-primary border-primary/20 dark:bg-primary/20 dark:text-primary-300 font-semibold'
+                    : 'bg-slate-50/80 dark:bg-slate-800/40 border-slate-200/60 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-primary/10 hover:text-primary hover:border-primary/20 dark:hover:bg-primary/20 dark:hover:text-primary-300'
+                }`
+              }
+            >
+              <Trash2 size={16} className="shrink-0" />
+              <span>Thùng rác</span>
+            </NavLink>
+
+            <NavLink
+              to="/settings"
+              onClick={onClose}
+              className={({ isActive }) =>
+                `flex items-center gap-2.5 px-3 py-2 rounded-xl border text-xs transition-all ${
+                  isActive
+                    ? 'bg-primary/10 text-primary border-primary/20 dark:bg-primary/20 dark:text-primary-300 font-semibold'
+                    : 'bg-slate-50/80 dark:bg-slate-800/40 border-slate-200/60 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-primary/10 hover:text-primary hover:border-primary/20 dark:hover:bg-primary/20 dark:hover:text-primary-300'
+                }`
+              }
+            >
+              <Settings size={16} className="shrink-0" />
+              <span>Cài đặt</span>
+            </NavLink>
           </div>
         </div>
 

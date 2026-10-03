@@ -33,7 +33,6 @@ function loadPinnedNotes(storageKey) {
 		const storedNotes = JSON.parse(localStorage.getItem(storageKey) || '[]');
 		return new Set(Array.isArray(storedNotes) ? storedNotes : []);
 	} catch {
-		// Dữ liệu localStorage hỏng không được làm gián đoạn trang ghi chú.
 		return new Set();
 	}
 }
@@ -93,10 +92,8 @@ export default function NotesPage({ searchQuery = '' }) {
 
 	const normalizedSearchQuery = searchQuery.trim();
 	const topicKey = topics.map((topic) => topic.slug).join(',');
-	// Đổi key khi chủ đề hoặc danh sách chủ đề đổi để không hiển thị nhầm dữ liệu cũ.
 	const requestKey = `${activeTopic || ''}:${topicKey}:${normalizedSearchQuery}:${reloadKey}`;
 
-	// Lưu ghim vào localStorage mỗi khi thay đổi
 	useEffect(() => {
 		const storageKey = getPinStorageKey();
 		if (storageKey) {
@@ -112,10 +109,7 @@ export default function NotesPage({ searchQuery = '' }) {
 		if (!isSortMenuOpen) return undefined;
 
 		const closeOnOutsideClick = (event) => {
-			if (
-				!sortMenuRef.current?.contains(event.target) &&
-				!sortMenuContentRef.current?.contains(event.target)
-			) {
+			if (!sortMenuRef.current?.contains(event.target) && !sortMenuContentRef.current?.contains(event.target)) {
 				setIsSortMenuOpen(false);
 			}
 		};
@@ -142,15 +136,9 @@ export default function NotesPage({ searchQuery = '' }) {
 			const buttonRect = button.getBoundingClientRect();
 			const menuRect = menu.getBoundingClientRect();
 			const margin = 8;
-			const left = Math.max(
-				margin,
-				Math.min(buttonRect.right - menuRect.width, window.innerWidth - menuRect.width - margin)
-			);
+			const left = Math.max(margin, Math.min(buttonRect.right - menuRect.width, window.innerWidth - menuRect.width - margin));
 			const spaceBelow = window.innerHeight - buttonRect.bottom;
-			const top =
-				spaceBelow >= menuRect.height + 12
-					? buttonRect.bottom + 8
-					: Math.max(margin, buttonRect.top - menuRect.height - 8);
+			const top = spaceBelow >= menuRect.height + 12 ? buttonRect.bottom + 8 : Math.max(margin, buttonRect.top - menuRect.height - 8);
 
 			setSortMenuPosition({ left, top });
 		};
@@ -166,39 +154,28 @@ export default function NotesPage({ searchQuery = '' }) {
 
 	useEffect(() => {
 		let isCurrentRequest = true;
-
-		// 'all' tải từng chủ đề; 404 chỉ có nghĩa chủ đề đó chưa có ghi chú.
 		const loadNotes = async () => {
 			try {
 				let loadedNotes = [];
-
 				if (activeTopic === 'all') {
 					const notesByTopic = await Promise.all(topics.map(async (topic) => {
 						try {
 							const topicNotes = await noteService.getNotes(topic.slug, normalizedSearchQuery);
-							return (Array.isArray(topicNotes) ? topicNotes : []).map((note) => ({
-								...note,
-								topicSlug: topic.slug,
-							}));
+							return (Array.isArray(topicNotes) ? topicNotes : []).map((note) => ({ ...note, topicSlug: topic.slug }));
 						} catch (error) {
 							if (getErrorStatus(error) === 404) return [];
 							throw error;
 						}
 					}));
-
 					loadedNotes = notesByTopic.flat();
 				} else if (activeTopic) {
 					try {
 						const topicNotes = await noteService.getNotes(activeTopic, normalizedSearchQuery);
-						loadedNotes = (Array.isArray(topicNotes) ? topicNotes : []).map((note) => ({
-							...note,
-							topicSlug: activeTopic,
-						}));
+						loadedNotes = (Array.isArray(topicNotes) ? topicNotes : []).map((note) => ({ ...note, topicSlug: activeTopic }));
 					} catch (error) {
 						if (getErrorStatus(error) !== 404) throw error;
 					}
 				}
-
 				if (isCurrentRequest) setRequestState({ key: requestKey, notes: loadedNotes, error: '' });
 			} catch (error) {
 				if (isCurrentRequest) {
@@ -206,25 +183,19 @@ export default function NotesPage({ searchQuery = '' }) {
 				}
 			}
 		};
-
 		loadNotes();
-		return () => {
-			// Bỏ qua phản hồi muộn nếu người dùng đã chuyển chủ đề hoặc rời trang.
-			isCurrentRequest = false;
-		};
+		return () => { isCurrentRequest = false; };
 	}, [activeTopic, topics, topicKey, normalizedSearchQuery, requestKey]);
 
 	const isLoading = isLoadingTopics || requestState.key !== requestKey;
 	const notes = requestState.key === requestKey ? requestState.notes : EMPTY_NOTES;
 	const loadError = requestState.key === requestKey ? requestState.error : '';
 
-	// Ưu tiên ghi chú đã ghim trước, rồi mới áp dụng tiêu chí sắp xếp được chọn.
 	const sortedNotes = useMemo(() => [...notes].sort((first, second) => {
 		const firstPinned = pinnedNotes.has(getPinKey(first));
 		const secondPinned = pinnedNotes.has(getPinKey(second));
 		if (firstPinned !== secondPinned) return firstPinned ? -1 : 1;
 
-		// Xử lý an toàn khi title bị thiếu
 		if (sortOrder === 'oldest') return getDateValue(first) - getDateValue(second);
 		if (sortOrder === 'title') {
 			const firstTitle = (first.title || '').trim();
@@ -245,10 +216,7 @@ export default function NotesPage({ searchQuery = '' }) {
 			const willPin = !next.has(key);
 			if (next.has(key)) next.delete(key);
 			else next.add(key);
-			setToast({
-				message: willPin ? 'Đã ghim ghi chú.' : 'Đã bỏ ghim ghi chú.',
-				type: 'success',
-			});
+			setToast({ message: willPin ? 'Đã ghim ghi chú.' : 'Đã bỏ ghim ghi chú.', type: 'success' });
 			return next;
 		});
 	}, []);
@@ -269,31 +237,28 @@ export default function NotesPage({ searchQuery = '' }) {
 		setIsFormOpen(true);
 	}, []);
 
-	// Chọn API tạo/cập nhật từ dữ liệu form và cập nhật danh sách ngay sau khi thành công.
 	const saveNote = useCallback(async (noteData) => {
 		const targetTopic = noteData.topicSlug || (activeTopic !== 'all' ? activeTopic : '');
 		if (!targetTopic) throw new Error('Hãy chọn chủ đề cho ghi chú.');
 
 		if (editingNote) {
-			const updatedNote = await noteService.updateNote(targetTopic, editingNote.id, noteData);
+			const updateResponse = await noteService.updateNote(targetTopic, editingNote.id, noteData);
+			const updatedNote = updateResponse?.data || updateResponse;
 			const savedNote = { ...updatedNote, topicSlug: targetTopic };
-			setRequestState((current) => current.key !== requestKey
-				? current
-				: {
-						...current,
-						notes: current.notes.map((note) => (
-							note.id === savedNote.id && note.topicSlug === editingNote.topicSlug ? savedNote : note
-						)),
-					});
+			setRequestState((current) => current.key !== requestKey ? current : {
+				...current,
+				notes: current.notes.map((note) => (note.id === savedNote.id && note.topicSlug === editingNote.topicSlug ? savedNote : note)),
+			});
+			setReloadKey((key) => key + 1);
 			setToast({ message: 'Đã cập nhật ghi chú.', type: 'success' });
 			closeForm();
 			return;
 		}
 
-		const createdNote = await noteService.createNote(targetTopic, noteData);
-		setRequestState((current) => current.key !== requestKey
-			? current
-			: { ...current, notes: [...current.notes, { ...createdNote, topicSlug: targetTopic }] });
+		const createResponse = await noteService.createNote(targetTopic, noteData);
+		const createdNote = createResponse?.data || createResponse;
+		setRequestState((current) => current.key !== requestKey ? current : { ...current, notes: [...current.notes, { ...createdNote, topicSlug: targetTopic }] });
+		setReloadKey((key) => key + 1);
 		setToast({ message: 'Đã tạo ghi chú.', type: 'success' });
 		closeForm();
 	}, [activeTopic, editingNote, requestKey, closeForm]);
@@ -302,54 +267,39 @@ export default function NotesPage({ searchQuery = '' }) {
 		const note = notes.find((item) => item.id === noteId && item.topicSlug === topicSlug);
 		if (!note) return;
 
-		// Xác nhận trước khi xóa để tránh mất ghi chú do thao tác nhầm.
 		const isConfirmed = confirm
 			? await confirm({
-					title: 'Xóa ghi chú',
-					message: `Bạn có chắc muốn xóa ghi chú "${note.title}" không?`,
-					confirmText: 'Xóa ghi chú',
-					cancelText: 'Giữ lại',
-					type: 'danger',
+					title: 'Chuyển ghi chú vào thùng rác',
+					message: `Ghi chú "${note.title}" sẽ được chuyển vào thùng rác và có thể khôi phục.`,
+					confirmText: 'Chuyển vào thùng rác',
+					cancelText: 'Hủy',
+					type: 'warning',
 				})
-			: window.confirm(`Bạn có chắc muốn xóa ghi chú "${note.title}" không?`);
+			: window.confirm(`Chuyển ghi chú "${note.title}" vào thùng rác?`);
 		if (!isConfirmed) return;
 
 		try {
 			await noteService.deleteNote(topicSlug, noteId);
-			setRequestState((current) => current.key !== requestKey
-				? current
-				: {
-						...current,
-						notes: current.notes.filter((item) => !(item.id === noteId && item.topicSlug === topicSlug)),
-					});
+			setRequestState((current) => current.key !== requestKey ? current : {
+				...current,
+				notes: current.notes.filter((item) => !(item.id === noteId && item.topicSlug === topicSlug)),
+			});
 			setPinnedNotes((current) => {
 				const next = new Set(current);
 				next.delete(getPinKey(note));
 				return next;
 			});
-			setViewedNote((current) => (
-				current?.id === noteId && current?.topicSlug === topicSlug ? null : current
-			));
-			setToast({ message: 'Đã xóa ghi chú.', type: 'success' });
+			setViewedNote((current) => (current?.id === noteId && current?.topicSlug === topicSlug ? null : current));
+			setToast({ message: 'Đã chuyển ghi chú vào thùng rác.', type: 'success' });
 		} catch (error) {
 			setToast({ message: getErrorMessage(error), type: 'error' });
 		}
 	}, [confirm, notes, requestKey]);
 
-	const currentViewedNote = viewedNote
-		? sortedNotes.find((note) => note.id === viewedNote.id && note.topicSlug === viewedNote.topicSlug) || null
-		: null;
-	const viewedNoteIndex = currentViewedNote
-		? sortedNotes.findIndex((note) => note.id === currentViewedNote.id && note.topicSlug === currentViewedNote.topicSlug)
-		: -1;
-
-	// Điều hướng chỉ trong cùng topic để giữ UX nhất quán
-	const notesInCurrentTopic = sortedNotes.filter((note) => (
-		currentViewedNote ? note.topicSlug === currentViewedNote.topicSlug : false
-	));
-	const noteIndexInTopic = notesInCurrentTopic.findIndex(
-		(note) => currentViewedNote && note.id === currentViewedNote.id
-	);
+	const currentViewedNote = viewedNote ? sortedNotes.find((note) => note.id === viewedNote.id && note.topicSlug === viewedNote.topicSlug) || null : null;
+	const viewedNoteIndex = currentViewedNote ? sortedNotes.findIndex((note) => note.id === currentViewedNote.id && note.topicSlug === currentViewedNote.topicSlug) : -1;
+	const notesInCurrentTopic = sortedNotes.filter((note) => (currentViewedNote ? note.topicSlug === currentViewedNote.topicSlug : false));
+	const noteIndexInTopic = notesInCurrentTopic.findIndex((note) => currentViewedNote && note.id === currentViewedNote.id);
 
 	const navigateViewedNote = useCallback((offset) => {
 		const nextNote = notesInCurrentTopic[noteIndexInTopic + offset];
@@ -357,16 +307,24 @@ export default function NotesPage({ searchQuery = '' }) {
 	}, [notesInCurrentTopic, noteIndexInTopic]);
 
 	return (
-		<section className="mx-auto w-full max-w-7xl space-y-6" aria-labelledby="notes-heading">
-			<header className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
+		<section className="mx-auto w-full max-w-7xl space-y-6 animate-fade-in" aria-labelledby="notes-heading">
+			
+			{/* Đồng bộ Header */}
+			<header className="flex flex-col gap-4 border-b border-slate-200 pb-5 dark:border-slate-800 lg:flex-row lg:items-end lg:justify-between">
 				<div className="min-w-0">
-					<h1 id="notes-heading" className="truncate text-2xl font-bold text-slate-800 dark:text-slate-100">
-						{activeTopicName}
-					</h1>
-					<p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-						{notes.length} ghi chú
+					<div className="mb-1 flex items-center gap-3">
+						<h1 id="notes-heading" className="truncate text-2xl font-bold tracking-tight text-slate-800 dark:text-slate-100">
+							{activeTopicName}
+						</h1>
+						<span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+							{notes.length} mục
+						</span>
+					</div>
+					<p className="text-sm text-slate-500 dark:text-slate-400">
+						{normalizedSearchQuery ? 'Kết quả tìm kiếm ghi chú.' : 'Quản lý và lưu trữ các ý tưởng của bạn.'}
 					</p>
 				</div>
+				
 				<div className="flex flex-wrap items-center gap-2">
 					<div ref={sortMenuRef} className="relative">
 						<button
@@ -382,67 +340,57 @@ export default function NotesPage({ searchQuery = '' }) {
 							<span className="text-xs font-medium text-slate-700 dark:text-slate-200">
 								{sortOrder === 'newest' ? 'Mới nhất' : sortOrder === 'oldest' ? 'Cũ nhất' : 'Tên A-Z'}
 							</span>
-							<ChevronDown
-								size={14}
-								className={`transition-transform ${isSortMenuOpen ? 'rotate-180' : ''}`}
-								aria-hidden="true"
-							/>
+							<ChevronDown size={14} className={`transition-transform ${isSortMenuOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
 						</button>
 					</div>
 
-					{isSortMenuOpen &&
-						createPortal(
-							<div
-								ref={sortMenuContentRef}
-								role="listbox"
-								aria-label="Sắp xếp ghi chú"
-								style={{
-									position: 'fixed',
-									left: sortMenuPosition.left,
-									top: sortMenuPosition.top,
-									visibility: sortMenuPosition.left ? 'visible' : 'hidden',
-								}}
-								className="z-[70] w-44 overflow-hidden rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl shadow-slate-900/10 ring-1 ring-black/5 dark:border-slate-700 dark:bg-slate-900 dark:shadow-black/30 dark:ring-white/5"
-							>
-								{[
-									{ value: 'newest', label: 'Mới nhất' },
-									{ value: 'oldest', label: 'Cũ nhất' },
-									{ value: 'title', label: 'Tên A-Z' },
-								].map((option) => (
-									<button
-										key={option.value}
-										type="button"
-										role="option"
-										aria-selected={sortOrder === option.value}
-										onClick={() => {
-											setSortOrder(option.value);
-											setIsSortMenuOpen(false);
-										}}
-										className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-xs transition ${
-											sortOrder === option.value
-												? 'bg-primary/10 font-semibold text-primary'
-												: 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
-										}`}
-									>
-										{option.label}
-										{sortOrder === option.value && <Check size={14} aria-hidden="true" />}
-									</button>
-								))}
-							</div>,
-							document.body
-						)}
+					{isSortMenuOpen && createPortal(
+						<div
+							ref={sortMenuContentRef}
+							role="listbox"
+							style={{
+								position: 'fixed',
+								left: sortMenuPosition.left,
+								top: sortMenuPosition.top,
+								visibility: sortMenuPosition.left ? 'visible' : 'hidden',
+							}}
+							className="z-[70] w-44 overflow-hidden rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl shadow-slate-900/10 ring-1 ring-black/5 dark:border-slate-700 dark:bg-slate-900 dark:shadow-black/30 dark:ring-white/5"
+						>
+							{[
+								{ value: 'newest', label: 'Mới nhất' },
+								{ value: 'oldest', label: 'Cũ nhất' },
+								{ value: 'title', label: 'Tên A-Z' },
+							].map((option) => (
+								<button
+									key={option.value}
+									type="button"
+									role="option"
+									aria-selected={sortOrder === option.value}
+									onClick={() => {
+										setSortOrder(option.value);
+										setIsSortMenuOpen(false);
+									}}
+									className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-xs transition ${
+										sortOrder === option.value
+											? 'bg-primary/10 font-semibold text-primary'
+											: 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
+									}`}
+								>
+									{option.label}
+									{sortOrder === option.value && <Check size={14} aria-hidden="true" />}
+								</button>
+							))}
+						</div>,
+						document.body
+					)}
 
 					<div className="flex h-10 items-center rounded-xl border border-slate-200 bg-white p-1 shadow-sm dark:border-slate-800 dark:bg-slate-900">
 						<button
 							type="button"
 							onClick={() => setViewMode('grid')}
-							aria-label="Hiển thị dạng lưới"
 							aria-pressed={viewMode === 'grid'}
-							title="Dạng lưới"
 							className={`flex h-8 w-8 items-center justify-center rounded-lg transition ${
-								viewMode === 'grid'
-									? 'bg-primary/10 text-primary'
-									: 'text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+								viewMode === 'grid' ? 'bg-primary/10 text-primary' : 'text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
 							}`}
 						>
 							<LayoutGrid size={16} aria-hidden="true" />
@@ -450,13 +398,9 @@ export default function NotesPage({ searchQuery = '' }) {
 						<button
 							type="button"
 							onClick={() => setViewMode('list')}
-							aria-label="Hiển thị dạng danh sách"
 							aria-pressed={viewMode === 'list'}
-							title="Dạng danh sách"
 							className={`flex h-8 w-8 items-center justify-center rounded-lg transition ${
-								viewMode === 'list'
-									? 'bg-primary/10 text-primary'
-									: 'text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+								viewMode === 'list' ? 'bg-primary/10 text-primary' : 'text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
 							}`}
 						>
 							<List size={16} aria-hidden="true" />
@@ -484,9 +428,8 @@ export default function NotesPage({ searchQuery = '' }) {
 					<LoadingSpinner size="lg" className="text-primary" />
 				</div>
 			) : loadError ? null : sortedNotes.length > 0 ? (
-				// Lưới tự chuyển 1 cột trên mobile, 2 cột trên tablet và 3 cột trên màn hình lớn.
 				<div className={viewMode === 'grid'
-					? 'grid grid-cols-1 items-stretch gap-4 sm:grid-cols-2 xl:grid-cols-3'
+					? 'grid grid-cols-1 items-stretch gap-4 sm:grid-cols-2 lg:grid-cols-3'
 					: 'grid grid-cols-1 gap-3'}>
 					{sortedNotes.map((note) => {
 						const topicName = topics.find((topic) => topic.slug === note.topicSlug)?.name;
@@ -507,7 +450,7 @@ export default function NotesPage({ searchQuery = '' }) {
 					})}
 				</div>
 			) : (
-				<div className="flex min-h-[42vh] w-full flex-col items-center justify-center px-4 py-10 text-center">
+				<div className="flex min-h-[40vh] w-full flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 px-4 py-10 text-center dark:border-slate-800 dark:bg-slate-900/50">
 					<div className="mb-5 grid size-16 place-items-center rounded-2xl bg-primary/10 text-primary">
 						<BookOpenText size={30} strokeWidth={1.6} aria-hidden="true" />
 					</div>
@@ -532,7 +475,6 @@ export default function NotesPage({ searchQuery = '' }) {
 				onClose={closeForm}
 				onSave={saveNote}
 				topics={topics}
-				// Khi xem tất cả chủ đề, form tạo mới cần cho chọn nơi lưu ghi chú.
 				showTopicSelector={activeTopic === 'all' && !editingNote}
 				defaultTopicSlug={activeTopic === 'all' ? topics[0]?.slug || '' : activeTopic}
 			/>
@@ -552,13 +494,7 @@ export default function NotesPage({ searchQuery = '' }) {
 				/>
 			)}
 
-			{toast && (
-				<Toast
-					message={toast.message}
-					type={toast.type}
-					onClose={() => setToast(null)}
-				/>
-			)}
+			{toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 		</section>
 	);
 }

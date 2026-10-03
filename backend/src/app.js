@@ -6,6 +6,7 @@ const profileRoutes = require('./routes/profileRoutes');
 const topicRoutes = require('./routes/topicRoutes');
 const noteRoutes = require('./routes/noteRoutes');
 const privateRoutes = require('./routes/privateRoutes');
+const trashRoutes = require('./routes/trashRoutes');
 
 const app = express();
 
@@ -20,6 +21,7 @@ app.get('/api/health', (req, res) => {
 
 // 3. Đăng ký các endpoints theo đúng tài liệu
 app.use('/api/profile', profileRoutes);
+app.use('/api/trash', trashRoutes);
 app.use('/api/topics', topicRoutes);
 app.use('/api/notes', noteRoutes);
 app.use('/api/private', privateRoutes);

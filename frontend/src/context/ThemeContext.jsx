@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { profileService } from '../services/profileService';
 
 // Định nghĩa 7 màu chủ đạo
@@ -15,6 +15,7 @@ export const THEME_COLORS = [
 const ThemeContext = createContext();
 
 export function ThemeProvider({ children }) {
+  const [isProfileLoading, setIsProfileLoading] = useState(true);
   const [profile, setProfile] = useState({
     displayName: 'Người dùng',
     theme: 'light',
@@ -22,31 +23,34 @@ export function ThemeProvider({ children }) {
     hasPrivatePassword: false
   });
 
-  // Tải dữ liệu cài đặt từ backend khi mở app
-  useEffect(() => {
-    async function fetchProfileSettings() {
-      try {
-        const data = await profileService.getProfile();
+  const refreshProfile = useCallback(async () => {
+    setIsProfileLoading(true);
+    try {
+      const data = await profileService.getProfile();
 
-        // Trích xuất đúng dữ liệu từ preferences của backend
-        setProfile((prev) => ({
-          ...prev,
-          displayName: data.displayName || prev.displayName,
-          theme: data.preferences?.theme || prev.theme,
-          primaryColor: data.preferences?.primaryColor || prev.primaryColor,
-          hasPrivatePassword: data.hasPrivatePassword || false
-        }));
+      setProfile((prev) => ({
+        ...prev,
+        displayName: data.displayName || prev.displayName,
+        theme: data.preferences?.theme || prev.theme,
+        primaryColor: data.preferences?.primaryColor || prev.primaryColor,
+        hasPrivatePassword: Boolean(data.hasPrivatePassword)
+      }));
 
-        // Mẹo phụ: Lưu theme tạm vào localStorage để không bị chớp màn hình trắng khi F5
-        if (data.preferences?.theme) {
-          localStorage.setItem('temp-theme', data.preferences.theme);
-        }
-      } catch (error) {
-        console.error('Lỗi tải cài đặt:', error);
+      if (data.preferences?.theme) {
+        localStorage.setItem('temp-theme', data.preferences.theme);
       }
+      return data;
+    } catch (error) {
+      console.error('Lỗi tải cài đặt:', error);
+      return null;
+    } finally {
+      setIsProfileLoading(false);
     }
-    fetchProfileSettings();
   }, []);
+
+  useEffect(() => {
+    refreshProfile();
+  }, [refreshProfile]);
 
   // Áp dụng class 'dark' vào thẻ html và cập nhật biến CSS màu chủ đạo
   useEffect(() => {
@@ -82,7 +86,7 @@ export function ThemeProvider({ children }) {
   };
 
   return (
-    <ThemeContext.Provider value={{ ...profile, updateThemeSettings, setProfile }}>
+    <ThemeContext.Provider value={{ ...profile, isProfileLoading, refreshProfile, updateThemeSettings, setProfile }}>
       {children}
     </ThemeContext.Provider>
   );

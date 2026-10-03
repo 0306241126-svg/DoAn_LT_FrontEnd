@@ -3,13 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { ShieldCheck, ShieldAlert, X } from 'lucide-react';
 import Input from '../common/Input';
 import Button from '../common/Button';
+import LoadingSpinner from '../common/LoadingSpinner';
 import { useAuthPrivate } from '../../context/AuthPrivateContext';
 import { useTheme } from '../../context/ThemeContext';
 import { privateService } from '../../services/privateService';
 
 export default function PrivateLockModal({ isOpen, onClose, onSuccess }) {
   const { unlock } = useAuthPrivate();
-  const { hasPrivatePassword, setProfile } = useTheme();
+  const { hasPrivatePassword, isProfileLoading, refreshProfile, setProfile } = useTheme();
   const navigate = useNavigate();
 
   // State chế độ Mở khóa
@@ -80,6 +81,12 @@ export default function PrivateLockModal({ isOpen, onClose, onSuccess }) {
       if (onSuccess) onSuccess();
       if (onClose) onClose();
     } catch (err) {
+      if (err.status === 409) {
+        await refreshProfile();
+        setPassword('');
+        setError('Mật khẩu đã được thiết lập. Hãy nhập mật khẩu hiện tại để mở khóa.');
+        return;
+      }
       setError(err.message || 'Không thể thiết lập mật khẩu');
     } finally {
       setLoading(false);
@@ -112,11 +119,14 @@ export default function PrivateLockModal({ isOpen, onClose, onSuccess }) {
             : 'Bạn chưa có mật khẩu. Vui lòng tạo mật khẩu mới để bảo vệ vùng riêng tư.'}
         </p>
 
-        {!hasPrivatePassword ? (
+        {isProfileLoading ? (
+          <div className="flex justify-center py-4" role="status" aria-label="Đang tải thông tin bảo mật">
+            <LoadingSpinner size="md" className="text-primary" />
+          </div>
+        ) : !hasPrivatePassword ? (
           <form onSubmit={handleSetup} className="space-y-4">
             <Input
               type="password"
-              // Cập nhật lại chuỗi placeholder hiển thị gợi ý
               placeholder="Tạo mật khẩu mới (lớn hơn 6 ký tự)..."
               value={newPassword}
               onChange={(e) => {

@@ -5,8 +5,9 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "npm run test:constants && npm run test:utils",
+    "test": "npm run test:constants && npm run test:trash && npm run test:utils",
     "test:constants": "node tests/test_constants.js",
+    "test:trash": "node tests/test_trash.js",
     "test:utils": "node tests/test_utils.js"
   },
   "keywords": [],

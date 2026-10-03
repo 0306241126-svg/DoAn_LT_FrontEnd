@@ -1,17 +1,8 @@
 import React, { useState, useEffect, useCallback, useLayoutEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import {
-  ArrowDownWideNarrow,
-  BookOpenText,
-  Check,
-  ChevronDown,
-  LayoutGrid,
-  List,
-  Plus,
-  ShieldAlert,
-} from 'lucide-react';
+import { ArrowDownWideNarrow, BookOpenText, Check, ChevronDown, LayoutGrid, List, Plus, ShieldAlert } from 'lucide-react';
 import { useAuthPrivate } from '../context/AuthPrivateContext';
-import { useConfirm } from '../context/ConfirmContext'; // 1. Đã import useConfirm
+import { useConfirm } from '../context/ConfirmContext';
 import { privateService } from '../services/privateService';
 import PrivateLockModal from '../components/private/PrivateLockModal';
 import NoteCard from '../components/notes/NoteCard';
@@ -29,7 +20,6 @@ function loadPinnedNotes(storageKey) {
     const savedPins = JSON.parse(localStorage.getItem(storageKey) || '[]');
     return new Set(Array.isArray(savedPins) ? savedPins.filter((key) => typeof key === 'string') : []);
   } catch (error) {
-    console.error('Không thể đọc danh sách ghi chú riêng tư đã ghim:', error);
     return new Set();
   }
 }
@@ -59,50 +49,42 @@ export default function PrivateNotesPage({ searchQuery = '' }) {
   const sortButtonRef = useRef(null);
   const sortMenuContentRef = useRef(null);
 
-  // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingNote, setEditingNote] = useState(null);
   const [viewingNoteId, setViewingNoteId] = useState(null);
-
-  // Toast
   const [toast, setToast] = useState(null);
+
   const normalizedSearchQuery = normalizeSearchText(searchQuery.trim());
-  const sortedNotes = useMemo(
-    () =>
-      notes
-        .filter((note) => {
-          if (!normalizedSearchQuery) return true;
-          const searchableText = normalizeSearchText(
-            `${note.title || ''} ${getRichTextPlainText(note.content || '')}`
-          );
-          return searchableText.includes(normalizedSearchQuery);
-        })
-        .sort((a, b) => {
-          const aPinned = pinnedKeys.has(getPinKey(a));
-          const bPinned = pinnedKeys.has(getPinKey(b));
-          if (aPinned !== bPinned) return aPinned ? -1 : 1;
+  
+  const sortedNotes = useMemo(() => notes
+    .filter((note) => {
+      if (!normalizedSearchQuery) return true;
+      const searchableText = normalizeSearchText(`${note.title || ''} ${getRichTextPlainText(note.content || '')}`);
+      return searchableText.includes(normalizedSearchQuery);
+    })
+    .sort((a, b) => {
+      const aPinned = pinnedKeys.has(getPinKey(a));
+      const bPinned = pinnedKeys.has(getPinKey(b));
+      if (aPinned !== bPinned) return aPinned ? -1 : 1;
 
-          if (sortOrder === 'title') {
-            return (a.title || '').localeCompare(b.title || '', 'vi', { sensitivity: 'base' });
-          }
-
-          const aDate = new Date(a.updatedAt || a.createdAt || 0).getTime();
-          const bDate = new Date(b.updatedAt || b.createdAt || 0).getTime();
-          return sortOrder === 'oldest' ? aDate - bDate : bDate - aDate;
-        }),
+      if (sortOrder === 'title') {
+        return (a.title || '').localeCompare(b.title || '', 'vi', { sensitivity: 'base' });
+      }
+      const aDate = new Date(a.updatedAt || a.createdAt || 0).getTime();
+      const bDate = new Date(b.updatedAt || b.createdAt || 0).getTime();
+      return sortOrder === 'oldest' ? aDate - bDate : bDate - aDate;
+    }),
     [notes, normalizedSearchQuery, pinnedKeys, sortOrder]
   );
+  
   const viewingNoteIndex = sortedNotes.findIndex((note) => note.id === viewingNoteId);
   const viewingNote = viewingNoteIndex >= 0 ? sortedNotes[viewingNoteIndex] : null;
-  const navigateViewingNote = useCallback(
-    (direction) => {
-      const nextNote = sortedNotes[viewingNoteIndex + direction];
-      if (nextNote) setViewingNoteId(nextNote.id);
-    },
-    [sortedNotes, viewingNoteIndex]
-  );
+  
+  const navigateViewingNote = useCallback((direction) => {
+    const nextNote = sortedNotes[viewingNoteIndex + direction];
+    if (nextNote) setViewingNoteId(nextNote.id);
+  }, [sortedNotes, viewingNoteIndex]);
 
-  // Tải danh sách ghi chú riêng tư
   const fetchPrivateNotes = useCallback(async () => {
     if (!isUnlocked) return;
     setLoading(true);
@@ -117,17 +99,14 @@ export default function PrivateNotesPage({ searchQuery = '' }) {
   }, [isUnlocked]);
 
   useEffect(() => {
-    if (isUnlocked) {
-      fetchPrivateNotes();
-    }
+    if (isUnlocked) fetchPrivateNotes();
   }, [isUnlocked, fetchPrivateNotes]);
 
   useEffect(() => {
     try {
       localStorage.setItem(pinStorageKey, JSON.stringify([...pinnedKeys]));
     } catch (error) {
-      console.error('Không thể lưu danh sách ghi chú riêng tư đã ghim:', error);
-      setToast({ type: 'error', message: 'Không thể lưu trạng thái ghim trên trình duyệt' });
+      setToast({ type: 'error', message: 'Không thể lưu trạng thái ghim' });
     }
   }, [pinnedKeys, pinStorageKey]);
 
@@ -143,19 +122,14 @@ export default function PrivateNotesPage({ searchQuery = '' }) {
 
   useEffect(() => {
     if (!isSortMenuOpen) return undefined;
-
     const closeOnOutsideClick = (event) => {
-      if (
-        !sortMenuRef.current?.contains(event.target) &&
-        !sortMenuContentRef.current?.contains(event.target)
-      ) {
+      if (!sortMenuRef.current?.contains(event.target) && !sortMenuContentRef.current?.contains(event.target)) {
         setIsSortMenuOpen(false);
       }
     };
     const closeOnEscape = (event) => {
       if (event.key === 'Escape') setIsSortMenuOpen(false);
     };
-
     document.addEventListener('mousedown', closeOnOutsideClick);
     document.addEventListener('keydown', closeOnEscape);
     return () => {
@@ -166,7 +140,6 @@ export default function PrivateNotesPage({ searchQuery = '' }) {
 
   useLayoutEffect(() => {
     if (!isSortMenuOpen) return undefined;
-
     const updateSortMenuPosition = () => {
       const button = sortButtonRef.current;
       const menu = sortMenuContentRef.current;
@@ -175,15 +148,9 @@ export default function PrivateNotesPage({ searchQuery = '' }) {
       const buttonRect = button.getBoundingClientRect();
       const menuRect = menu.getBoundingClientRect();
       const margin = 8;
-      const left = Math.max(
-        margin,
-        Math.min(buttonRect.right - menuRect.width, window.innerWidth - menuRect.width - margin)
-      );
+      const left = Math.max(margin, Math.min(buttonRect.right - menuRect.width, window.innerWidth - menuRect.width - margin));
       const spaceBelow = window.innerHeight - buttonRect.bottom;
-      const top =
-        spaceBelow >= menuRect.height + 12
-          ? buttonRect.bottom + 8
-          : Math.max(margin, buttonRect.top - menuRect.height - 8);
+      const top = spaceBelow >= menuRect.height + 12 ? buttonRect.bottom + 8 : Math.max(margin, buttonRect.top - menuRect.height - 8);
 
       setSortMenuPosition({ left, top });
     };
@@ -197,7 +164,6 @@ export default function PrivateNotesPage({ searchQuery = '' }) {
     };
   }, [isSortMenuOpen]);
 
-  // Thêm hoặc Sửa ghi chú riêng tư
   const handleSavePrivateNote = async ({ title, content }) => {
     try {
       if (editingNote) {
@@ -213,7 +179,6 @@ export default function PrivateNotesPage({ searchQuery = '' }) {
     }
   };
 
-  // 2 & 3. Đổi đúng tên hàm và dùng privateService.deletePrivateNote(id)
   const handleDeletePrivateNote = async (id) => {
     const isOk = await confirm({
       title: 'Xóa ghi chú riêng tư',
@@ -237,7 +202,6 @@ export default function PrivateNotesPage({ searchQuery = '' }) {
     }
   };
 
-  // NẾU CHƯA MỞ KHÓA: Chặn màn hình bằng PrivateLockModal
   if (!isUnlocked) {
     return (
       <div className="relative h-full flex items-center justify-center">
@@ -250,15 +214,23 @@ export default function PrivateNotesPage({ searchQuery = '' }) {
     );
   }
 
-  // NẾU ĐÃ MỞ KHÓA: Hiển thị giao diện danh sách ghi chú
   return (
-    <div className="w-full space-y-6 text-left animate-fade-in">
-      <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Vùng riêng tư</h1>
-          <span className="rounded-full border border-primary/15 bg-primary/5 px-2.5 py-1 text-xs font-semibold text-primary">
-            {normalizedSearchQuery ? `${sortedNotes.length} kết quả` : `${notes.length} ghi chú được bảo vệ`}
-          </span>
+    <section className="mx-auto w-full max-w-7xl space-y-6 text-left animate-fade-in" aria-labelledby="private-notes-heading">
+      
+      {/* Đồng bộ Header */}
+      <header className="flex flex-col gap-4 border-b border-slate-200 pb-5 dark:border-slate-800 lg:flex-row lg:items-end lg:justify-between">
+        <div className="min-w-0">
+          <div className="mb-1 flex items-center gap-3">
+            <h1 id="private-notes-heading" className="truncate text-2xl font-bold tracking-tight text-slate-800 dark:text-slate-100">
+              Vùng riêng tư
+            </h1>
+            <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+              {notes.length} mục
+            </span>
+          </div>
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            {normalizedSearchQuery ? 'Kết quả tìm kiếm ghi chú mật.' : 'Các thông tin mật được lưu tại đây chỉ bạn mới xem được.'}
+          </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -266,8 +238,6 @@ export default function PrivateNotesPage({ searchQuery = '' }) {
             <button
               ref={sortButtonRef}
               type="button"
-              aria-label="Sắp xếp ghi chú riêng tư"
-              aria-haspopup="listbox"
               aria-expanded={isSortMenuOpen}
               onClick={() => setIsSortMenuOpen((open) => !open)}
               className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-slate-500 shadow-sm transition hover:border-primary/30 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:hover:bg-slate-800/80"
@@ -276,65 +246,57 @@ export default function PrivateNotesPage({ searchQuery = '' }) {
               <span className="text-xs font-medium text-slate-700 dark:text-slate-200">
                 {sortOrder === 'newest' ? 'Mới nhất' : sortOrder === 'oldest' ? 'Cũ nhất' : 'Tên A-Z'}
               </span>
-              <ChevronDown
-                size={14}
-                className={`transition-transform ${isSortMenuOpen ? 'rotate-180' : ''}`}
-              />
+              <ChevronDown size={14} className={`transition-transform ${isSortMenuOpen ? 'rotate-180' : ''}`} />
             </button>
           </div>
 
-          {isSortMenuOpen &&
-            createPortal(
-              <div
-                ref={sortMenuContentRef}
-                role="listbox"
-                aria-label="Sắp xếp ghi chú riêng tư"
-                style={{
-                  position: 'fixed',
-                  left: sortMenuPosition.left,
-                  top: sortMenuPosition.top,
-                  visibility: sortMenuPosition.left ? 'visible' : 'hidden',
-                }}
-                className="z-[70] w-44 overflow-hidden rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl shadow-slate-900/10 ring-1 ring-black/5 dark:border-slate-700 dark:bg-slate-900 dark:shadow-black/30 dark:ring-white/5"
-              >
-                {[
-                  { value: 'newest', label: 'Mới nhất' },
-                  { value: 'oldest', label: 'Cũ nhất' },
-                  { value: 'title', label: 'Tên A-Z' },
-                ].map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    role="option"
-                    aria-selected={sortOrder === option.value}
-                    onClick={() => {
-                      setSortOrder(option.value);
-                      setIsSortMenuOpen(false);
-                    }}
-                    className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-xs transition ${
-                      sortOrder === option.value
-                        ? 'bg-primary/10 font-semibold text-primary'
-                        : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
-                    }`}
-                  >
-                    {option.label}
-                    {sortOrder === option.value && <Check size={14} />}
-                  </button>
-                ))}
-              </div>,
-              document.body
-            )}
+          {isSortMenuOpen && createPortal(
+            <div
+              ref={sortMenuContentRef}
+              role="listbox"
+              style={{
+                position: 'fixed',
+                left: sortMenuPosition.left,
+                top: sortMenuPosition.top,
+                visibility: sortMenuPosition.left ? 'visible' : 'hidden',
+              }}
+              className="z-[70] w-44 overflow-hidden rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl shadow-slate-900/10 ring-1 ring-black/5 dark:border-slate-700 dark:bg-slate-900 dark:shadow-black/30 dark:ring-white/5"
+            >
+              {[
+                { value: 'newest', label: 'Mới nhất' },
+                { value: 'oldest', label: 'Cũ nhất' },
+                { value: 'title', label: 'Tên A-Z' },
+              ].map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  role="option"
+                  aria-selected={sortOrder === option.value}
+                  onClick={() => {
+                    setSortOrder(option.value);
+                    setIsSortMenuOpen(false);
+                  }}
+                  className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-xs transition ${
+                    sortOrder === option.value
+                      ? 'bg-primary/10 font-semibold text-primary'
+                      : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  {option.label}
+                  {sortOrder === option.value && <Check size={14} />}
+                </button>
+              ))}
+            </div>,
+            document.body
+          )}
 
           <div className="flex h-10 items-center rounded-xl border border-slate-200 bg-white p-1 shadow-sm dark:border-slate-800 dark:bg-slate-900">
             <button
               type="button"
               onClick={() => setViewMode('grid')}
-              aria-label="Xem dạng lưới"
               aria-pressed={viewMode === 'grid'}
               className={`flex h-8 w-8 items-center justify-center rounded-lg transition ${
-                viewMode === 'grid'
-                  ? 'bg-primary/10 text-primary'
-                  : 'text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                viewMode === 'grid' ? 'bg-primary/10 text-primary' : 'text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
               }`}
             >
               <LayoutGrid size={16} />
@@ -342,70 +304,45 @@ export default function PrivateNotesPage({ searchQuery = '' }) {
             <button
               type="button"
               onClick={() => setViewMode('list')}
-              aria-label="Xem dạng danh sách"
               aria-pressed={viewMode === 'list'}
               className={`flex h-8 w-8 items-center justify-center rounded-lg transition ${
-                viewMode === 'list'
-                  ? 'bg-primary/10 text-primary'
-                  : 'text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                viewMode === 'list' ? 'bg-primary/10 text-primary' : 'text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
               }`}
             >
               <List size={16} />
             </button>
           </div>
 
-          <Button
-            onClick={() => {
-              setEditingNote(null);
-              setIsModalOpen(true);
-            }}
-            icon={Plus}
-          >
-            Tạo ghi chú mới
+          <Button onClick={() => { setEditingNote(null); setIsModalOpen(true); }} icon={Plus}>
+            Thêm ghi chú mật
           </Button>
         </div>
-      </div>
+      </header>
 
       {loading ? (
-        <div className="py-20 flex justify-center">
-          <LoadingSpinner size="lg" />
+        <div className="flex min-h-[40vh] items-center justify-center" role="status" aria-label="Đang tải ghi chú riêng tư">
+          <LoadingSpinner size="lg" className="text-primary" />
         </div>
       ) : sortedNotes.length === 0 ? (
-        <div className="flex min-h-72 flex-col items-center justify-center rounded-3xl border-2 border-dashed border-slate-200 bg-white/60 px-5 py-12 text-center dark:border-slate-800 dark:bg-slate-900/40">
-          <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-            <BookOpenText size={30} strokeWidth={1.5} />
+        <div className="flex min-h-[40vh] w-full flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 px-4 py-10 text-center dark:border-slate-800 dark:bg-slate-900/50">
+          <div className="mb-5 grid size-16 place-items-center rounded-2xl bg-primary/10 text-primary">
+            <ShieldAlert size={30} strokeWidth={1.6} aria-hidden="true" />
           </div>
-          <h2 className="text-base font-semibold text-slate-700 dark:text-slate-200">
-            {normalizedSearchQuery
-              ? 'Không tìm thấy ghi chú phù hợp.'
-              : 'Chưa có ghi chú nào trong vùng riêng tư.'}
+          <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100">
+            {normalizedSearchQuery ? 'Không tìm thấy ghi chú phù hợp' : 'Chưa có ghi chú mật nào'}
           </h2>
-          <p className="mt-1 max-w-sm text-sm text-slate-400">
-            {normalizedSearchQuery
-              ? 'Thử thay đổi từ khóa tìm kiếm.'
-              : 'Các thông tin mật được lưu tại đây chỉ bạn mới xem được.'}
+          <p className="mt-2 max-w-sm text-sm leading-6 text-slate-500 dark:text-slate-400">
+            {normalizedSearchQuery ? 'Thử thay đổi từ khóa tìm kiếm.' : 'Bắt đầu lưu trữ các thông tin riêng tư của bạn tại đây.'}
           </p>
           {!normalizedSearchQuery && (
-            <Button
-              onClick={() => {
-                setEditingNote(null);
-                setIsModalOpen(true);
-              }}
-              icon={Plus}
-              className="mt-5"
-            >
-              Tạo ghi chú ngay
+            <Button onClick={() => { setEditingNote(null); setIsModalOpen(true); }} className="mt-5">
+              <Plus size={17} aria-hidden="true" />
+              Tạo ghi chú bảo mật
             </Button>
           )}
         </div>
       ) : (
-        <div
-          className={
-            viewMode === 'grid'
-              ? 'grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
-              : 'flex flex-col gap-3'
-          }
-        >
+        <div className={viewMode === 'grid' ? 'grid grid-cols-1 items-stretch gap-4 sm:grid-cols-2 lg:grid-cols-3' : 'grid grid-cols-1 gap-3'}>
           {sortedNotes.map((note) => (
             <NoteCard
               key={note.id}
@@ -414,11 +351,7 @@ export default function PrivateNotesPage({ searchQuery = '' }) {
               onTogglePin={togglePin}
               viewMode={viewMode}
               onOpen={(selectedNote) => setViewingNoteId(selectedNote.id)}
-              onEdit={(n) => {
-                setViewingNoteId(null);
-                setEditingNote(n);
-                setIsModalOpen(true);
-              }}
+              onEdit={(n) => { setViewingNoteId(null); setEditingNote(n); setIsModalOpen(true); }}
               onDelete={handleDeletePrivateNote}
             />
           ))}
@@ -438,11 +371,7 @@ export default function PrivateNotesPage({ searchQuery = '' }) {
           isPinned={pinnedKeys.has(getPinKey(viewingNote))}
           onTogglePin={togglePin}
           onClose={() => setViewingNoteId(null)}
-          onEdit={(note) => {
-            setViewingNoteId(null);
-            setEditingNote(note);
-            setIsModalOpen(true);
-          }}
+          onEdit={(note) => { setViewingNoteId(null); setEditingNote(note); setIsModalOpen(true); }}
           onDelete={handleDeletePrivateNote}
           onNavigate={navigateViewingNote}
           canGoPrevious={viewingNoteIndex > 0}
@@ -451,6 +380,6 @@ export default function PrivateNotesPage({ searchQuery = '' }) {
       )}
 
       {toast && <Toast {...toast} onClose={() => setToast(null)} />}
-    </div>
+    </section>
   );
 }

@@ -40,7 +40,9 @@ export function NoteProvider({ children }) {
         throw new Error('Dữ liệu chủ đề tạo mới không hợp lệ');
       }
 
-      setTopics((prev) => [...prev, newTopic]);
+      setTopics((prev) =>
+        prev.some((topic) => topic.slug === newTopic.slug) ? prev : [...prev, newTopic]
+      );
       setActiveTopic(newTopic.slug);
       return newTopic;
     } catch (err) {

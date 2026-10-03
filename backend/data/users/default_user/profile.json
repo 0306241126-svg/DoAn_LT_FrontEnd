@@ -1,7 +1,7 @@
 {
-  "displayName": "Linh",
+  "displayName": "Nguyễn Hoài Linh",
   "preferences": {
-    "theme": "dark",
+    "theme": "light",
     "primaryColor": "#f43f5e"
   },
   "topics": [
@@ -11,7 +11,19 @@
     },
     {
       "slug": "lap-trinh",
-      "name": "Lập trình"
+      "name": "lập trình"
+    },
+    {
+      "slug": "dadadadad",
+      "name": "dẩdadadad"
+    },
+    {
+      "slug": "gffgfg",
+      "name": "gffgfg"
+    },
+    {
+      "slug": "dtqttqq",
+      "name": "dtqttqq"
     }
   ],
   "privatePasswordHash": "$2b$10$cJucCZsaXGmP.e0CfZBtuOSDyutlUdHWyePQ1J5MDnFGed/m1o6vq"
