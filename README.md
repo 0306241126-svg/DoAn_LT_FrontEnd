@@ -4,11 +4,11 @@
 
 ## 1. THÔNG TIN NHÓM THỰC HIỆN
 
-| STT | Họ và Tên | Vai Trò | Nhiệm Vụ Chính |
-| :---: | :--- | :--- | :--- |
-| 1 | **Lê Minh Quân** | Thành viên | Setup môi trường dự án, cấu hình Axios, Core CSS, Common Components và Services. |
-| 2 | **Ngô Gia Bảo** | Thành viên | Xây dựng hệ thống File I/O, mã hóa Bcrypt, Profile API, Layout và Giao diện ghi chú. |
-| 3 | **Nguyễn Hoài Linh** | Thành viên | Xây dựng API Topic, API Note, Auth Guard, Context API, Vùng riêng tư và Routing. |
+| STT | MSSV | Họ và Tên | Vai Trò | Nhiệm Vụ Chính |
+| :---: | :---: | :--- | :--- | :--- |
+| 1 | 0306241126 | **Nguyễn Hoài Linh** | Trưởng nhóm / Quản lý dự án | Khởi tạo Workspace, xây dựng nền tảng File I/O Backend (đọc/ghi, mã hóa Bcrypt); cấu hình Routes chính; phát triển các tính năng nâng cấp (Rich Text, Sắp xếp, Ghim, Layout Header/Sidebar, Modal chi tiết). |
+| 2 | 0306241090 | **Ngô Gia Bảo** | Thành viên | Cấu hình Core Frontend (Axios, Services, CSS), quản lý State toàn cục (Context API cho Theme, Notes, Auth); ráp nối giao diện trang NotesPage, PrivateNotesPage và phát triển tính năng Thùng rác. |
+| 3 | 0306241143 | **Lê Minh Quân** | Thành viên | Viết toàn bộ API nghiệp vụ Backend (Profile, Topic, Note, Private) và Middleware bảo mật; xây dựng các Component UI dùng chung, khung Layout cơ sở và ráp trang SettingsPage. |
 
 ---
 
@@ -38,103 +38,124 @@
 ## 3. CẤU TRÚC CÂY THƯ MỤC DỰ ÁN
 
 ```text
-quan-ly-ghi-chu/
+quan_ly_ghi_chu/
+├── .gitignore                                      # Quy định các tệp/thư mục Git bỏ qua, như node_modules và .env
+├── HƯỚNG DẪN CHI TIẾT DỰ ÁN .docx                 # Tài liệu hướng dẫn chi tiết của dự án
+├── README.md                                       # Giới thiệu dự án, thông tin nhóm, cấu trúc và hướng dẫn chạy
 │
-├── .gitignore                                 # Khai báo loại trừ node_modules/ và .env khi đẩy mã nguồn lên Git[cite: 7]
-├── README.md                                  # Tài liệu giới thiệu, thông tin thành viên và hướng dẫn chạy đồ án[cite: 7]
-│
-├── backend/                                   # Mã nguồn phía máy chủ (Node.js / Express)[cite: 7, 8]
-│   ├── data/                                  # Kho lưu trữ dữ liệu JSON tĩnh của ứng dụng[cite: 7, 8]
-│   │   └── users/                             # Thư mục lưu dữ liệu theo người dùng[cite: 7, 8]
-│   │       └── default_user/                  # Người dùng mặc định của hệ thống[cite: 7, 8]
-│   │           ├── notes/                     # Thư mục chứa các tệp ghi chú theo từng chủ đề[cite: 7, 8]
-│   │           │   ├── [slug].json            # Tệp ghi chú theo chủ đề động (ví dụ: hoc-tap.json, do-an.json)[cite: 7, 8]
-│   │           │   └── private.json           # Tệp ghi chú bảo vệ thuộc Vùng riêng tư[cite: 7, 8]
-│   │           └── profile.json               # Cấu hình người dùng: tên, theme, màu sắc, mảng danh sách topics, mật khẩu băm[cite: 7, 8]
+├── backend/                                        # Mã nguồn máy chủ Node.js và Express
+│   ├── .env                                        # Biến môi trường Backend trên máy local; không đưa giá trị nhạy cảm lên Git
+│   ├── data/                                       # Dữ liệu ứng dụng được lưu bằng các tệp JSON
+│   │   └── users/                                  # Dữ liệu được phân chia theo người dùng
+│   │       └── default_user/                       # Thư mục dữ liệu của người dùng mặc định
+│   │           ├── notes/                          # Ghi chú thường, lưu riêng theo slug của chủ đề
+│   │           │   ├── .gitkeep                    # Giữ thư mục notes trong Git khi thư mục trống
+│   │           │   ├── dadadadad.json              # Dữ liệu ghi chú của một chủ đề
+│   │           │   ├── dtqttqq.json                # Dữ liệu ghi chú của một chủ đề
+│   │           │   ├── gffgfg.json                 # Dữ liệu ghi chú của một chủ đề
+│   │           │   ├── hoc-tap.json                # Ghi chú thuộc chủ đề “Học tập”
+│   │           │   └── lap-trinh.json              # Ghi chú thuộc chủ đề “Lập trình”
+│   │           ├── private.json                    # Ghi chú thuộc khu vực riêng tư
+│   │           ├── profile.json                    # Hồ sơ, tùy chọn giao diện và danh sách chủ đề người dùng
+│   │           └── trash.json                      # Các ghi chú/chủ đề đã chuyển vào thùng rác
 │   │
-│   ├── src/                                   # Mã nguồn chính của Backend[cite: 7, 8]
-│   │   ├── config/                            # Cấu hình hệ thống[cite: 7, 8]
-│   │   │   └── constants.js                   # Đường dẫn tuyệt đối DATA_DIR và hằng số DEFAULT_USERNAME[cite: 7, 8]
-│   │   │
-│   │   ├── controllers/                       # Xử lý nghiệp vụ và thao tác đọc/ghi dữ liệu[cite: 7, 8]
-│   │   │   ├── noteController.js              # Xử lý CRUD ghi chú thông thường[cite: 7, 8]
-│   │   │   ├── privateController.js           # Xử lý cài đặt mật khẩu, mở khóa và CRUD ghi chú riêng tư[cite: 7, 8]
-│   │   │   ├── profileController.js           # Xử lý xem/cập nhật hồ sơ và giao diện[cite: 7, 8]
-│   │   │   └── topicController.js             # Xử lý xem, tạo, sửa tên và xóa chủ đề[cite: 7, 8]
-│   │   │
-│   │   ├── middlewares/                       # Các tầng trung gian kiểm tra bảo mật[cite: 7, 8]
-│   │   │   └── verifyPrivateAccess.js         # Kiểm tra Header Authorization, chặn truy cập trái phép vào vùng kín (HTTP 401)[cite: 7, 8]
-│   │   │
-│   │   ├── routes/                            # Định nghĩa các điểm cuối API[cite: 7, 8]
-│   │   │   ├── noteRoutes.js                  # Định tuyến các API liên quan đến ghi chú[cite: 7, 8]
-│   │   │   ├── privateRoutes.js               # Định tuyến các API liên quan đến vùng riêng tư[cite: 7, 8]
-│   │   │   ├── profileRoutes.js               # Định tuyến các API liên quan đến hồ sơ cá nhân[cite: 7, 8]
-│   │   │   └── topicRoutes.js                 # Định tuyến các API liên quan đến chủ đề[cite: 7, 8]
-│   │   │
-│   │   └── utils/                             # Các hàm tiện ích hỗ trợ nghiệp vụ[cite: 7, 8]
-│   │       ├── encryption.js                  # Hàm băm (hashPassword) và so sánh mật khẩu (comparePassword) bằng Bcrypt[cite: 7, 8]
-│   │       ├── fileHelper.js                  # Hàm đọc file (readJson) và ghi an toàn (atomicWriteJson)[cite: 7, 8]
-│   │       └── slugify.js                     # Hàm chuyển đổi tiếng Việt có dấu sang slug không dấu[cite: 7, 8]
+│   ├── src/                                        # Mã nguồn Backend
+│   │   ├── config/
+│   │   │   └── constants.js                        # Hằng số cấu hình như DATA_DIR, PORT và DEFAULT_USERNAME
+│   │   ├── controllers/                            # Xử lý nghiệp vụ cho từng nhóm API
+│   │   │   ├── noteController.js                   # Xử lý ghi chú thường
+│   │   │   ├── privateController.js                # Xử lý mở khóa và ghi chú riêng tư
+│   │   │   ├── profileController.js                # Xử lý hồ sơ và tùy chọn người dùng
+│   │   │   ├── topicController.js                  # Xử lý danh sách và thao tác với chủ đề
+│   │   │   └── trashController.js                  # Xử lý khôi phục, xóa vĩnh viễn và làm trống thùng rác
+│   │   ├── middlewares/
+│   │   │   └── verifyPrivateAccess.js              # Kiểm tra quyền truy cập API khu vực riêng tư
+│   │   ├── routes/                                 # Khai báo các endpoint API
+│   │   │   ├── noteRoutes.js                       # Các endpoint ghi chú thường
+│   │   │   ├── privateRoutes.js                    # Các endpoint khu vực riêng tư
+│   │   │   ├── profileRoutes.js                    # Các endpoint hồ sơ người dùng
+│   │   │   ├── topicRoutes.js                      # Các endpoint chủ đề
+│   │   │   └── trashRoutes.js                      # Các endpoint thùng rác
+│   │   ├── services/
+│   │   │   └── trashService.js                     # Nghiệp vụ lưu trữ và quản lý dữ liệu thùng rác
+│   │   └── utils/                                   # Các tiện ích dùng chung cho Backend
+│   │       ├── encryption.js                       # Băm và kiểm tra mật khẩu bằng bcrypt
+│   │       ├── fileHelper.js                       # Đọc và ghi tệp JSON an toàn
+│   │       └── slugify.js                           # Chuyển tên chủ đề thành slug dùng trong đường dẫn/tên tệp
 │   │
-│   ├── .env                                   # Biến môi trường Backend (chứa PORT=5000)[cite: 7, 8]
-│   ├── package.json                           # Khai báo các thư viện npm Backend (express, cors, bcrypt, dotenv)[cite: 7, 8]
-│   └── server.js                              # Khởi chạy Express, cấu hình middleware (cors, json parser), gom các routes[cite: 7, 8]
+│   ├── tests/                                      # Kiểm thử Backend và tệp mẫu gọi API
+│   │   ├── all_routes.http                        # Các request mẫu để kiểm tra những nhóm API
+│   │   ├── tasks_3_3_to_3_5.http                  # Request mẫu kiểm tra ghi chú và truy cập riêng tư
+│   │   ├── test_constants.js                      # Kiểm tra các hằng số và đường dẫn dữ liệu
+│   │   ├── test_encryption.js                     # Kiểm tra chức năng băm và so khớp mật khẩu
+│   │   ├── test_trash.js                           # Kiểm tra xóa, khôi phục và làm trống thùng rác
+│   │   ├── test_utils.js                           # Kiểm tra slugify và thao tác đọc/ghi JSON
+│   │   └── topics.http                             # Request mẫu kiểm tra API chủ đề
+│   ├── package-lock.json                           # Khóa phiên bản thư viện Backend đã cài
+│   ├── package.json                                # Khai báo thư viện và lệnh chạy/kiểm thử Backend
+│   └── server.js                                   # Nạp cấu hình, tạo thư mục dữ liệu và khởi chạy máy chủ
 │
-│
-└── frontend/                                  # Giao diện người dùng (React 18 + Vite + Tailwind CSS v4)[cite: 7, 8]
-    ├── public/                                # Chứa tài nguyên tĩnh công khai[cite: 7, 8]
-    │   └── vite.svg                           # Logo mặc định của Vite
-    │
-    ├── src/                                   # Mã nguồn chính của Frontend[cite: 7, 8]
-    │   ├── assets/                            # Hình ảnh, biểu tượng hoặc font chữ của ứng dụng[cite: 7, 8]
-    │   │   └── react.svg                      # Logo React
-    │   │
-    │   ├── components/                        # Các thành phần giao diện tái sử dụng[cite: 7, 8]
-    │   │   ├── common/                        # Component dùng chung[cite: 7, 8]
-    │   │   │   ├── Button.jsx                 # Nút bấm tùy biến giao diện, hỗ trợ icon xoay khi loading[cite: 7, 8]
-    │   │   │   ├── Input.jsx                  # Ô nhập liệu có tích hợp nhãn label và hiển thị lỗi validation[cite: 7, 8]
-    │   │   │   ├── LoadingSpinner.jsx         # Hiệu ứng vòng xoay khi chờ tải dữ liệu[cite: 7, 8]
-    │   │   │   └── Toast.jsx                  # Thông báo popup căn giữa phía trên màn hình, tự đóng sau vài giây[cite: 7, 8]
-    │   │   │
-    │   │   ├── layout/                        # Khung xương của giao diện[cite: 7, 8]
-    │   │   │   ├── Header.jsx                 # Thanh trên cùng chứa ô tìm kiếm, nút chuyển sáng/tối và thông tin người dùng[cite: 7, 8]
-    │   │   │   ├── MainLayout.jsx             # Layout chính ghép nối Header, Sidebar và vùng nội dung Outlet[cite: 7, 8]
-    │   │   │   └── Sidebar.jsx                # Thanh menu bên trái liệt kê chủ đề có dấu, nút thêm chủ đề và nút Vùng riêng tư[cite: 7, 8]
-    │   │   │
-    │   │   ├── notes/                         # Component phục vụ tính năng ghi chú[cite: 7, 8]
-    │   │   │   ├── NoteCard.jsx               # Thẻ hiển thị tóm tắt ghi chú (tiêu đề, nội dung ngắn gọn, ngày tạo/sửa)[cite: 7, 8]
-    │   │   │   └── NoteFormModal.jsx          # Hộp thoại tạo/sửa ghi chú (bắt buộc kiểm tra tiêu đề không được để trống)[cite: 7, 8]
-    │   │   │
-    │   │   └── private/                       # Component phục vụ tính năng bảo mật[cite: 7, 8]
-    │   │       └── PrivateLockModal.jsx       # Hộp thoại chặn màn hình yêu cầu nhập mật khẩu (>6 ký tự), nút X thoát về trang chủ[cite: 7, 8]
-    │   │
-    │   ├── context/                           # Quản lý trạng thái toàn cục (Context API)[cite: 7, 8]
-    │   │   ├── AuthPrivateContext.jsx         # Quản lý trạng thái isUnlocked, token mở khóa và đếm ngược tự động khóa lại[cite: 7, 8]
-    │   │   ├── NoteContext.jsx                # Quản lý danh sách ghi chú, danh sách chủ đề và chủ đề active[cite: 7, 8]
-    │   │   └── ThemeContext.jsx               # Quản lý Sáng/Tối, 7 màu chủ đạo, lưu temp-theme vào localStorage chống nháy trắng[cite: 7, 8]
-    │   │
-    │   ├── hooks/                             # Custom hooks[cite: 7, 8]
-    │   │   └── useDebounce.js                 # Hook trì hoãn từ khóa tìm kiếm (500ms) để tối ưu hiệu năng gọi API[cite: 7, 8]
-    │   │
-    │   ├── pages/                             # Các màn hình chính của ứng dụng[cite: 7, 8]
-    │   │   ├── NotesPage.jsx                  # Trang hiển thị danh sách thẻ ghi chú thường (có xử lý Empty State)[cite: 7, 8]
-    │   │   ├── PrivateNotesPage.jsx           # Trang hiển thị ghi chú bảo mật (bọc khóa an toàn, thanh tiêu đề linh hoạt)[cite: 7, 8]
-    │   │   └── SettingsPage.jsx               # Trang Cài đặt (đổi tên hiển thị, chuyển chế độ Sáng/Tối, bảng chọn 7 màu chủ đạo)[cite: 7, 8]
-    │   │
-    │   ├── services/                          # Tầng gọi API qua Axios kết nối xuống Backend[cite: 7, 8]
-    │   │   ├── api.js                         # Cấu hình Axios instance (baseURL cổng 5000, interceptors gắn token)[cite: 7, 8]
-    │   │   ├── noteService.js                 # Các hàm gọi API CRUD ghi chú thông thường[cite: 7, 8]
-    │   │   ├── privateService.js              # Các hàm gọi API mở khóa, cài đặt mật khẩu và CRUD ghi chú riêng tư[cite: 7, 8]
-    │   │   ├── profileService.js              # Các hàm gọi API lấy và cập nhật profile cá nhân[cite: 7, 8]
-    │   │   └── topicService.js                # Các hàm gọi API lấy, thêm, sửa tên và xóa chủ đề[cite: 7, 8]
-    │   │
-    │   ├── App.jsx                            # Cấu hình React Router (trỏ /, /private, /settings) và bọc 3 Provider toàn cục[cite: 7, 8]
-    │   ├── index.css                          # Cấu hình Tailwind v4 (@theme, @variant dark, biến --color-primary)[cite: 7, 8]
-    │   └── main.jsx                           # Điểm nạp React vào thẻ #root trong DOM[cite: 7, 8]
-    │
-    ├── index.html                             # File HTML template chính của ứng dụng web[cite: 7, 8]
-    ├── package.json                           # Khai báo các thư viện npm Frontend (react, react-router-dom, axios, lucide-react)[cite: 7, 8]
-    └── vite.config.js                         # Cấu hình đóng gói Vite (tích hợp plugin React và Tailwind CSS v4)[cite: 7, 8]
+└── frontend/                                       # Giao diện người dùng React và Vite
+    ├── .gitignore                                  # Các mục Git bỏ qua riêng cho Frontend
+    ├── .oxlintrc.json                              # Cấu hình Oxlint cho mã nguồn Frontend
+    ├── index.html                                  # HTML gốc, phần tử root và tiêu đề ứng dụng
+    ├── package-lock.json                           # Khóa phiên bản thư viện Frontend đã cài
+    ├── package.json                                # Khai báo thư viện và lệnh dev, build, lint, preview
+    ├── vite.config.js                              # Cấu hình Vite, plugin React/Tailwind và cổng phát triển
+    ├── public/                                     # Tài nguyên tĩnh được phục vụ trực tiếp
+    │   ├── favicon.svg                             # Biểu tượng ứng dụng trên tab trình duyệt
+    │   ├── icons.svg                               # Tập biểu tượng SVG tĩnh
+    │   └── images/
+    │       └── 1790822702152_3203883919812151739_g5520636365658538576_00d44b88ceb743c678b5b9bce68e51ae-removebg-preview.png
+    │                                               # Hình ảnh tĩnh dùng trong giao diện
+    └── src/                                        # Mã nguồn giao diện
+        ├── components/                             # Các thành phần giao diện tái sử dụng
+        │   ├── common/                             # Thành phần dùng chung
+        │   │   ├── Button.jsx                      # Nút bấm dùng lại trong ứng dụng
+        │   │   ├── ConfirmModal.jsx                # Hộp thoại xác nhận thao tác
+        │   │   ├── Input.jsx                       # Trường nhập liệu dùng chung
+        │   │   ├── LoadingSpinner.jsx              # Hiệu ứng chờ tải dữ liệu
+        │   │   └── Toast.jsx                       # Thông báo ngắn trên giao diện
+        │   ├── layout/                             # Thành phần khung bố cục ứng dụng
+        │   │   ├── Header.jsx                      # Thanh đầu trang và các thao tác chính
+        │   │   ├── MainLayout.jsx                  # Bố cục chính ghép Header, Sidebar và nội dung trang
+        │   │   └── Sidebar.jsx                     # Thanh điều hướng và danh sách chủ đề
+        │   ├── notes/                              # Thành phần giao diện ghi chú
+        │   │   ├── NoteCard.jsx                    # Thẻ tóm tắt một ghi chú
+        │   │   ├── NoteFormModal.jsx               # Hộp thoại tạo hoặc chỉnh sửa ghi chú
+        │   │   └── NoteViewModal.jsx               # Hộp thoại xem nội dung ghi chú
+        │   └── private/
+        │       └── PrivateLockModal.jsx            # Hộp thoại khóa/yêu cầu mở khóa khu vực riêng tư
+        ├── constants/
+        │   └── topics.js                           # Hằng số và dữ liệu chủ đề dùng ở Frontend
+        ├── context/                                # Context quản lý trạng thái dùng chung
+        │   ├── AuthPrivateContext.jsx              # Trạng thái mở khóa và quyền truy cập khu vực riêng tư
+        │   ├── ConfirmContext.jsx                  # Trạng thái và hàm gọi hộp thoại xác nhận
+        │   ├── NoteContext.jsx                     # Trạng thái ghi chú và chủ đề
+        │   └── ThemeContext.jsx                    # Trạng thái giao diện và tùy chọn chủ đề màu
+        ├── hooks/
+        │   └── useDebounce.js                      # Hook trì hoãn cập nhật giá trị, hỗ trợ tìm kiếm
+        ├── pages/                                  # Các trang chính của ứng dụng
+        │   ├── NotesPage.jsx                       # Trang ghi chú thường
+        │   ├── PrivateNotesPage.jsx                # Trang ghi chú riêng tư
+        │   ├── SettingsPage.jsx                    # Trang cài đặt hồ sơ và giao diện
+        │   └── TrashPage.jsx                       # Trang quản lý thùng rác
+        ├── services/                               # Các hàm kết nối Frontend với Backend API
+        │   ├── api.js                              # Cấu hình Axios dùng chung
+        │   ├── noteService.js                      # Request API cho ghi chú thường
+        │   ├── privateService.js                   # Request API cho khu vực riêng tư
+        │   ├── profileService.js                   # Request API cho hồ sơ người dùng
+        │   ├── topicService.js                     # Request API cho chủ đề
+        │   └── trashService.js                     # Request API cho thùng rác
+        ├── utils/
+        │   └── richText.js                         # Tiện ích xử lý nội dung ghi chú dạng văn bản giàu định dạng
+        ├── App.css                                 # CSS bổ sung cho ứng dụng
+        ├── App.jsx                                 # Khai báo các Provider và định tuyến các trang
+        ├── index.css                               # CSS toàn cục, Tailwind và các kiểu giao diện nền tảng
+        └── main.jsx                                # Điểm khởi chạy React, Router và tệp CSS toàn cục
+
+    └── node_modules/                               # Thư viện Frontend cài trên máy; không đưa nội dung vào cây
+backend/node_modules/                                # Thư viện Backend cài trên máy; không đưa nội dung vào cây
 ```
 
 ---
