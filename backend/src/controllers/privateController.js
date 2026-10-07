@@ -8,6 +8,10 @@ const { setSessionToken } = require('../middlewares/verifyPrivateAccess');
 const getProfilePath = (username) => path.join(DATA_DIR, 'users', username, 'profile.json');
 const getPrivateFilePath = (username) => path.join(DATA_DIR, 'users', username, 'private.json');
 
+// Giới hạn bảo mật
+const MAX_FAILED_ATTEMPTS = 5;
+const LOCKOUT_DURATION_MS = 15 * 60 * 1000; // Khóa 15 phút
+
 /**
  * POST /api/private/setup
  * Thiết lập mật khẩu lần đầu nếu profile chưa có
@@ -34,6 +38,8 @@ const setupPassword = async (req, res, next) => {
     }
 
     profile.privatePasswordHash = await hashPassword(password);
+    profile.failedAttempts = 0;
+    profile.lockoutUntil = null;
     await atomicWriteJson(profilePath, profile);
 
     // Khởi tạo sẵn file private.json rỗng nếu chưa có
@@ -55,7 +61,7 @@ const setupPassword = async (req, res, next) => {
 
 /**
  * POST /api/private/unlock
- * Xác thực mật khẩu và sinh token phiên
+ * Xác thực mật khẩu và sinh token phiên (Có khóa tài khoản nếu sai quá 5 lần)
  */
 const unlockPrivate = async (req, res, next) => {
   try {
@@ -75,12 +81,48 @@ const unlockPrivate = async (req, res, next) => {
       });
     }
 
+    const now = Date.now();
+
+    // 1. Kiểm tra tài khoản có đang trong thời gian bị khóa hay không
+    if (profile.lockoutUntil && now < profile.lockoutUntil) {
+      const remainingMinutes = Math.ceil((profile.lockoutUntil - now) / (60 * 1000));
+      return res.status(429).json({
+        success: false,
+        message: `Tài khoản đang bị tạm khóa do nhập sai mật khẩu quá nhiều lần. Vui lòng thử lại sau ${remainingMinutes} phút.`
+      });
+    }
+
     const isMatch = await comparePassword(password, profile.privatePasswordHash);
+
+    // 2. Mật khẩu KHÔNG chính xác
     if (!isMatch) {
+      const currentAttempts = (profile.failedAttempts || 0) + 1;
+      profile.failedAttempts = currentAttempts;
+
+      if (currentAttempts >= MAX_FAILED_ATTEMPTS) {
+        profile.lockoutUntil = now + LOCKOUT_DURATION_MS;
+        await atomicWriteJson(profilePath, profile);
+
+        return res.status(429).json({
+          success: false,
+          message: `Mật khẩu không chính xác. Bạn đã nhập sai ${MAX_FAILED_ATTEMPTS} lần liên tiếp. Tài khoản bị tạm khóa 15 phút.`
+        });
+      }
+
+      await atomicWriteJson(profilePath, profile);
+      const remainingAttempts = MAX_FAILED_ATTEMPTS - currentAttempts;
+
       return res.status(401).json({
         success: false,
-        message: 'Mật khẩu không chính xác'
+        message: `Mật khẩu không chính xác. Bạn còn ${remainingAttempts} lần thử.`
       });
+    }
+
+    // 3. Mật khẩu CHÍNH XÁC -> Reset đếm sai và thời gian khóa
+    if (profile.failedAttempts > 0 || profile.lockoutUntil) {
+      profile.failedAttempts = 0;
+      profile.lockoutUntil = null;
+      await atomicWriteJson(profilePath, profile);
     }
 
     // Tạo token ngẫu nhiên
@@ -123,6 +165,8 @@ const changePassword = async (req, res, next) => {
     }
 
     profile.privatePasswordHash = await hashPassword(newPassword);
+    profile.failedAttempts = 0;
+    profile.lockoutUntil = null;
     await atomicWriteJson(profilePath, profile);
 
     return res.status(200).json({

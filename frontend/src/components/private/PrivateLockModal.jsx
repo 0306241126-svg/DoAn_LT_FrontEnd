@@ -34,6 +34,9 @@ export default function PrivateLockModal({ isOpen, onClose, onSuccess }) {
   };
 
   // Xử lý mở khóa
+// ... các phần import giữ nguyên
+
+  // Xử lý mở khóa
   const handleUnlock = async (e) => {
     e.preventDefault();
     if (!password) {
@@ -49,11 +52,15 @@ export default function PrivateLockModal({ isOpen, onClose, onSuccess }) {
       if (onSuccess) onSuccess();
       if (onClose) onClose();
     } catch (err) {
-      setError(err.message || 'Mật khẩu không chính xác');
+      // Ưu tiên hiển thị message chi tiết trả về từ Backend
+      const serverMessage = err.response?.data?.message || err.message;
+      setError(serverMessage || 'Mật khẩu không chính xác');
     } finally {
       setLoading(false);
     }
   };
+
+// ... các đoạn code còn lại của PrivateLockModal.jsx giữ nguyên
 
   // Xử lý thiết lập mật khẩu lần đầu
   const handleSetup = async (e) => {
