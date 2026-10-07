@@ -19,19 +19,10 @@
 ### Các chức năng nổi bật:
 * **Quản lý danh mục chủ đề (Topics):** Hỗ trợ tạo, sửa, xóa và hiển thị đầy đủ tên chủ đề có dấu tiếng Việt.
 * **Quản lý ghi chú thường (Notes CRUD):** Tạo mới, chỉnh sửa, xóa và tìm kiếm nhanh ghi chú theo thời gian thực (tích hợp kỹ thuật Debounce chống quá tải API).
-* **Vùng riêng tư bảo mật 2 lớp (Private Zone):** Khu vực lưu trữ các ghi chú nhạy cảm, yêu cầu bảo vệ bằng mật khẩu (mã hóa Bcrypt, yêu cầu độ dài từ 7 ký tự trở lên). Tự động khóa an toàn sau một khoảng thời gian không thao tác.
+* **Vùng riêng tư (Private Zone):** Khu vực lưu trữ ghi chú nhạy cảm, yêu cầu xác thực bằng mật khẩu (mã hóa Bcrypt, tối thiểu 7 ký tự). Tích hợp cơ chế bảo mật nhiều lớp: tự động khóa khi ngưng thao tác sau 15 phút, chống tấn công dò mật khẩu (Brute-force) bằng việc tạm khóa 15 phút khi nhập sai quá 5 lần liên tiếp và giới hạn truy cập theo IP.
 * **Hệ thống lưu trữ tệp cục bộ an toàn (Local File Storage):** Lưu trữ dữ liệu dạng JSON, áp dụng cơ chế ghi an toàn (Atomic Write) chống lỗi mất dữ liệu khi xảy ra ngắt quãng tiến trình.
 * **Tùy biến giao diện (Theming System):** Chuyển đổi linh hoạt chế độ Sáng/Tối (Dark Mode) và bộ chọn 7 màu chủ đạo, lưu trữ trạng thái chống giật màn hình khi tải lại trang.
 
-### Ghi chú lưu trữ: Chức năng Thùng rác
-
-* Xóa ghi chú/chủ đề là xóa mềm. Ghi chú lưu `deletedAt` trong file chủ đề; chủ đề lưu `deletedAt` trong `profile.json`. Dữ liệu đã xóa không xuất hiện trong danh sách hoạt động.
-* Thùng rác hiển thị ghi chú đã xóa riêng và chủ đề đã xóa như một mục tổng hợp. Khôi phục chủ đề sẽ khôi phục các ghi chú chưa bị xóa riêng; ghi chú đã xóa riêng vẫn ở trong thùng rác.
-* Xóa vĩnh viễn một ghi chú chỉ xóa ghi chú đó. Xóa vĩnh viễn một chủ đề hoặc dọn sạch thùng rác sẽ xóa vĩnh viễn các file ghi chú liên quan.
-* API ghi chú: `GET /api/notes/trash`, `POST /api/notes/trash/:topicSlug/:id/restore`, `DELETE /api/notes/trash/:topicSlug/:id/permanent`, `DELETE /api/notes/trash`.
-* API chủ đề: `POST /api/topics/trash/:topicSlug/restore`, `DELETE /api/topics/trash/:topicSlug/permanent`. `DELETE /api/topics/:topicSlug` chuyển chủ đề vào thùng rác.
-* File triển khai chính: `backend/src/controllers/noteController.js`, `backend/src/controllers/topicController.js`, `backend/src/routes/noteRoutes.js`, `backend/src/routes/topicRoutes.js`, `frontend/src/pages/TrashPage.jsx`, `frontend/src/components/layout/Sidebar.jsx`, `frontend/src/services/noteService.js`, `frontend/src/services/topicService.js`.
-* Regression test: chạy `npm run test:trash --prefix backend`.
 
 ---
 
@@ -49,15 +40,6 @@ quan_ly_ghi_chu/
 │   │   └── users/                                  # Dữ liệu được phân chia theo người dùng
 │   │       └── default_user/                       # Thư mục dữ liệu của người dùng mặc định
 │   │           ├── notes/                          # Ghi chú thường, lưu riêng theo slug của chủ đề
-│   │           │   ├── .gitkeep                    # Giữ thư mục notes trong Git khi thư mục trống
-│   │           │   ├── dadadadad.json              # Dữ liệu ghi chú của một chủ đề
-│   │           │   ├── dtqttqq.json                # Dữ liệu ghi chú của một chủ đề
-│   │           │   ├── gffgfg.json                 # Dữ liệu ghi chú của một chủ đề
-│   │           │   ├── hoc-tap.json                # Ghi chú thuộc chủ đề “Học tập”
-│   │           │   └── lap-trinh.json              # Ghi chú thuộc chủ đề “Lập trình”
-│   │           ├── private.json                    # Ghi chú thuộc khu vực riêng tư
-│   │           ├── profile.json                    # Hồ sơ, tùy chọn giao diện và danh sách chủ đề người dùng
-│   │           └── trash.json                      # Các ghi chú/chủ đề đã chuyển vào thùng rác
 │   │
 │   ├── src/                                        # Mã nguồn Backend
 │   │   ├── config/
@@ -84,13 +66,6 @@ quan_ly_ghi_chu/
 │   │       └── slugify.js                           # Chuyển tên chủ đề thành slug dùng trong đường dẫn/tên tệp
 │   │
 │   ├── tests/                                      # Kiểm thử Backend và tệp mẫu gọi API
-│   │   ├── all_routes.http                        # Các request mẫu để kiểm tra những nhóm API
-│   │   ├── tasks_3_3_to_3_5.http                  # Request mẫu kiểm tra ghi chú và truy cập riêng tư
-│   │   ├── test_constants.js                      # Kiểm tra các hằng số và đường dẫn dữ liệu
-│   │   ├── test_encryption.js                     # Kiểm tra chức năng băm và so khớp mật khẩu
-│   │   ├── test_trash.js                           # Kiểm tra xóa, khôi phục và làm trống thùng rác
-│   │   ├── test_utils.js                           # Kiểm tra slugify và thao tác đọc/ghi JSON
-│   │   └── topics.http                             # Request mẫu kiểm tra API chủ đề
 │   ├── package-lock.json                           # Khóa phiên bản thư viện Backend đã cài
 │   ├── package.json                                # Khai báo thư viện và lệnh chạy/kiểm thử Backend
 │   └── server.js                                   # Nạp cấu hình, tạo thư mục dữ liệu và khởi chạy máy chủ
@@ -103,11 +78,6 @@ quan_ly_ghi_chu/
     ├── package.json                                # Khai báo thư viện và lệnh dev, build, lint, preview
     ├── vite.config.js                              # Cấu hình Vite, plugin React/Tailwind và cổng phát triển
     ├── public/                                     # Tài nguyên tĩnh được phục vụ trực tiếp
-    │   ├── favicon.svg                             # Biểu tượng ứng dụng trên tab trình duyệt
-    │   ├── icons.svg                               # Tập biểu tượng SVG tĩnh
-    │   └── images/
-    │       └── 1790822702152_3203883919812151739_g5520636365658538576_00d44b88ceb743c678b5b9bce68e51ae-removebg-preview.png
-    │                                               # Hình ảnh tĩnh dùng trong giao diện
     └── src/                                        # Mã nguồn giao diện
         ├── components/                             # Các thành phần giao diện tái sử dụng
         │   ├── common/                             # Thành phần dùng chung
@@ -155,7 +125,6 @@ quan_ly_ghi_chu/
         └── main.jsx                                # Điểm khởi chạy React, Router và tệp CSS toàn cục
 
     └── node_modules/                               # Thư viện Frontend cài trên máy; không đưa nội dung vào cây
-backend/node_modules/                                # Thư viện Backend cài trên máy; không đưa nội dung vào cây
 ```
 
 ---
