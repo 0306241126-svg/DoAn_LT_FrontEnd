@@ -11,7 +11,7 @@ const getProfilePath = (username) => {
 const DEFAULT_PROFILE = {
   displayName: 'Ghi chú',
   preferences: {
-    theme: 'dark',
+    theme: 'light',
     primaryColor: '#1976d2'
   },
   privatePasswordHash: null

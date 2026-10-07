@@ -1,10 +1,21 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Plus, Folder, Lock, Unlock, Settings, ChevronRight, Trash2, X, Shield, Layers } from 'lucide-react';
+import { Plus, Lock, Unlock, Settings, ChevronRight, Trash2, X, Shield, Layers } from 'lucide-react';
 import { useNotes } from '../../context/NoteContext';
 import { useAuthPrivate } from '../../context/AuthPrivateContext';
 import { useConfirm } from '../../context/ConfirmContext';
 import { noteService } from '../../services/noteService';
+
+// Bảng màu tuần hoàn cho từng chủ đề
+const TOPIC_DOT_COLORS = [
+  'bg-amber-400',
+  'bg-sky-500',
+  'bg-emerald-500',
+  'bg-purple-500',
+  'bg-indigo-500',
+  'bg-rose-500',
+  'bg-teal-500',
+];
 
 export default function Sidebar({ isOpen, onClose, onOpenNewTopicModal, isNewTopicModalOpen }) {
   const { topics, activeTopic, setActiveTopic, removeTopic } = useNotes();
@@ -14,19 +25,19 @@ export default function Sidebar({ isOpen, onClose, onOpenNewTopicModal, isNewTop
 
   const handleDeleteTopic = async (e, topic) => {
     e.stopPropagation();
-    let noteCount;
+    let noteCount = 0;
     try {
       const notes = await noteService.getNotes(topic.slug);
-      if (!Array.isArray(notes)) throw new Error('Dữ liệu ghi chú của chủ đề không hợp lệ');
-      noteCount = notes.length;
-    } catch (error) {
-      window.alert(error.message || 'Không thể kiểm tra số ghi chú trong chủ đề');
-      return;
+      if (Array.isArray(notes)) {
+        noteCount = notes.length;
+      }
+    } catch {
+      noteCount = topic.notesCount ?? 0;
     }
 
     const isOk = await confirm({
       title: 'Chuyển chủ đề vào thùng rác',
-      message: `Chủ đề '${topic.name}' hiện đang có ${noteCount} ghi chú. Bạn có chắc chắn muốn chuyển chủ đề cùng ${noteCount} ghi chú này vào Thùng rác không?`,
+      message: `Chủ đề '${topic.name}' hiện đang có ${noteCount} ghi chú. Bạn có chắc chắn muốn chuyển chủ đề cùng các ghi chú này vào Thùng rác không?`,
       confirmText: 'Chuyển vào thùng rác',
       cancelText: 'Hủy',
       type: 'warning',
@@ -41,7 +52,6 @@ export default function Sidebar({ isOpen, onClose, onOpenNewTopicModal, isNewTop
     }
   };
 
-  // Chọn chủ đề cần xem, quay về trang ghi chú và đóng Sidebar trên thiết bị di động
   const handleSelectTopic = (slug) => {
     setActiveTopic(slug);
     navigate('/');
@@ -54,23 +64,22 @@ export default function Sidebar({ isOpen, onClose, onOpenNewTopicModal, isNewTop
       {isOpen && (
         <div
           onClick={onClose}
-          className="fixed inset-0 bg-black/40 z-40 md:hidden backdrop-blur-xs transition-opacity"
+          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-xs transition-opacity md:hidden"
         />
       )}
 
       {/* Khung Sidebar chính */}
       <aside
-        className={`fixed md:static inset-y-0 left-0 z-50 w-64 bg-white dark:bg-slate-900 border-r border-slate-200/80 dark:border-slate-800/80 flex flex-col justify-between h-full select-none transform transition-transform duration-200 ease-in-out md:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 flex h-full w-64 select-none flex-col justify-between border-r border-slate-200/80 bg-white transition-transform duration-200 ease-in-out dark:border-slate-800/80 dark:bg-slate-900 md:static md:translate-x-0 ${
           isOpen ? 'translate-x-0 shadow-2xl md:shadow-none' : '-translate-x-full'
         }`}
       >
-        <div className="p-4 flex flex-col flex-1 min-h-0">
+        <div className="flex min-h-0 flex-1 flex-col p-4">
           
-          {/* Header Sidebar: Thiết kế hiện đại, chống đen ruột ảnh ở Dark Mode */}
+          {/* Header Sidebar */}
           <div className="relative mb-3 flex shrink-0 items-center justify-between border-b border-slate-100 pb-3 dark:border-slate-800/80">
-            <div className="flex items-center gap-2.5 min-w-0">
-              {/* Box chứa Logo - Luôn cố định nền trắng để bảo vệ file PNG đã xóa nền */}
-              <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white p-1 shadow-sm ring-1 ring-slate-200/70 dark:ring-slate-700/80">
+            <div className="flex min-w-0 items-center gap-2.5">
+              <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white p-1 shadow-xs ring-1 ring-slate-200/70 dark:ring-slate-700/80">
                 <img
                   src="/images/1790822702152_3203883919812151739_g5520636365658538576_00d44b88ceb743c678b5b9bce68e51ae-removebg-preview.png"
                   alt="Minh họa sổ tay"
@@ -78,9 +87,8 @@ export default function Sidebar({ isOpen, onClose, onOpenNewTopicModal, isNewTop
                 />
               </div>
 
-              {/* Tên ứng dụng & Định danh */}
               <div className="truncate">
-                <h1 className="font-bold text-slate-800 dark:text-slate-100 text-sm tracking-tight leading-none mb-1">
+                <h1 className="mb-1 text-sm font-bold tracking-tight text-slate-800 dark:text-slate-100 leading-none">
                   Private NoteApp
                 </h1>
                 <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 leading-none">
@@ -89,38 +97,36 @@ export default function Sidebar({ isOpen, onClose, onOpenNewTopicModal, isNewTop
               </div>
             </div>
 
-            {/* Nút đóng Sidebar trên màn hình di động */}
             <button
               type="button"
               onClick={onClose}
-              className="p-1 text-slate-400 bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-800 hover:text-slate-600 dark:hover:text-slate-200 md:hidden rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+              className="rounded-lg border border-slate-200/60 bg-slate-50/80 p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:border-slate-800 dark:bg-slate-800/40 dark:hover:bg-slate-800 dark:hover:text-slate-200 md:hidden"
               aria-label="Đóng thanh bên"
             >
               <X size={18} />
             </button>
           </div>
 
-          {/* NHÓM 1: HỆ THỐNG (Vùng riêng tư) */}
-          <div className="space-y-1 mb-3 shrink-0">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2 mb-1.5">
+          {/* NHÓM 1: HỆ THỐNG */}
+          <div className="mb-3 shrink-0 space-y-1">
+            <p className="mb-1.5 px-2 text-[10px] font-bold tracking-wider text-slate-400 uppercase">
               Hệ thống
             </p>
 
-            {/* Vùng riêng tư */}
             <NavLink
               to="/private"
               onClick={onClose}
               className={({ isActive }) =>
-                `group flex items-center justify-between p-2.5 rounded-xl transition-all border ${
+                `group flex items-center justify-between rounded-xl border p-2.5 transition-all ${
                   isActive
-                    ? 'bg-primary/10 text-primary border-primary/20 dark:bg-primary/20 dark:text-primary-300 font-semibold'
-                    : 'bg-slate-50/80 dark:bg-slate-800/40 border-slate-200/60 dark:border-slate-800 text-slate-700 dark:text-slate-200 hover:bg-primary/10 hover:text-primary hover:border-primary/20 dark:hover:bg-primary/20'
+                    ? 'border-primary/20 bg-primary/10 font-semibold text-primary dark:bg-primary/20 dark:text-primary-300'
+                    : 'border-slate-200/60 bg-slate-50/80 text-slate-700 hover:border-primary/20 hover:bg-primary/10 hover:text-primary dark:border-slate-800 dark:bg-slate-800/40 dark:text-slate-200 dark:hover:bg-primary/20'
                 }`
               }
             >
               <div className="flex items-center gap-2.5 truncate">
                 <div
-                  className={`p-1.5 rounded-lg shrink-0 transition-colors ${
+                  className={`shrink-0 rounded-lg p-1.5 transition-colors ${
                     isUnlocked
                       ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
                       : 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
@@ -135,50 +141,47 @@ export default function Sidebar({ isOpen, onClose, onOpenNewTopicModal, isNewTop
                   </p>
                 </div>
               </div>
-              <ChevronRight size={14} className="opacity-50 shrink-0 group-hover:translate-x-0.5 transition-transform" />
+              <ChevronRight size={14} className="shrink-0 opacity-50 transition-transform group-hover:translate-x-0.5" />
             </NavLink>
           </div>
 
-          {/* Đường phân cách nhẹ */}
-          <div className="h-px bg-slate-100 dark:bg-slate-800/80 my-1 shrink-0" />
+          {/* Đường phân cách */}
+          <div className="my-1 h-px shrink-0 bg-slate-100 dark:bg-slate-800/80" />
 
-          {/* NHÓM 2: QUẢN LÝ CHỦ ĐỀ & NÚT TẠO MỚI */}
-          <div className="mt-3 flex-1 flex flex-col min-h-0">
-            {/* Nút Thêm chủ đề */}
-            <button
-              type="button"
-              onClick={() => {
-                onOpenNewTopicModal();
-                if (onClose) onClose();
-              }}
-              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border text-xs transition-all cursor-pointer mb-2 ${
-                isNewTopicModalOpen
-                  ? 'bg-primary/10 text-primary border-primary/20 dark:bg-primary/20 dark:text-primary-300 font-semibold'
-                  : 'bg-slate-50/80 dark:bg-slate-800/40 border-slate-200/60 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-primary/10 hover:text-primary hover:border-primary/20 dark:hover:bg-primary/20 dark:hover:text-primary-300'
-              }`}
-            >
-              <Plus size={16} className="shrink-0" />
-              <span>Thêm chủ đề</span>
-            </button>
-
-            {/* Danh sách chủ đề */}
-            <div className="flex items-center justify-between px-2 mb-2 shrink-0">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+          {/* NHÓM 2: QUẢN LÝ CHỦ ĐỀ */}
+          <div className="mt-3 flex min-h-0 flex-1 flex-col">
+            
+            {/* Thanh tiêu đề nhóm & nút Thêm mới */}
+            <div className="mb-2 flex shrink-0 items-center justify-between px-2">
+              <span className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">
                 Chủ đề ({topics.length})
               </span>
+              <button
+                type="button"
+                onClick={() => {
+                  onOpenNewTopicModal();
+                  if (onClose) onClose();
+                }}
+                className="flex items-center gap-1 text-[11px] font-semibold text-primary transition hover:opacity-80 cursor-pointer"
+              >
+                <Plus size={13} strokeWidth={2.5} />
+                Thêm mới
+              </button>
             </div>
 
-            <div className="space-y-1 overflow-y-auto flex-1 pr-1 custom-scrollbar mb-2">
-              {/* Chọn "all" để hiển thị ghi chú thuộc mọi chủ đề */}
+            {/* Danh sách cuộn các chủ đề */}
+            <div className="custom-scrollbar mb-2 flex-1 space-y-1 overflow-y-auto pr-1">
+              
+              {/* Mục "Tất cả chủ đề" */}
               <div
                 onClick={() => handleSelectTopic('all')}
-                className={`group flex items-center justify-between px-3 py-2.5 rounded-xl border text-xs transition select-none cursor-pointer ${
+                className={`group flex cursor-pointer select-none items-center justify-between rounded-xl px-3 py-2 text-xs transition-all ${
                   activeTopic === 'all'
-                    ? 'bg-primary/10 text-primary border-primary/20 dark:bg-primary/20 dark:text-primary-300 font-semibold'
-                    : 'bg-slate-50/80 dark:bg-slate-800/40 border-slate-200/60 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100/70 dark:hover:bg-slate-800/60'
+                    ? 'bg-primary/10 font-semibold text-primary dark:bg-primary/20 dark:text-primary-300'
+                    : 'text-slate-600 hover:bg-slate-100/80 dark:text-slate-300 dark:hover:bg-slate-800/60'
                 }`}
               >
-                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                <div className="flex min-w-0 flex-1 items-center gap-2.5">
                   <Layers
                     size={15}
                     className={`shrink-0 transition-colors ${
@@ -189,41 +192,33 @@ export default function Sidebar({ isOpen, onClose, onOpenNewTopicModal, isNewTop
                 </div>
               </div>
 
-              {/* Danh sách từng chủ đề riêng */}
-              {topics.map((topic) => {
+              {/* Từng chủ đề riêng biệt (Đã bỏ hiển thị số lượng ghi chú) */}
+              {topics.map((topic, index) => {
                 const isActive = activeTopic === topic.slug;
+                const dotColor = TOPIC_DOT_COLORS[index % TOPIC_DOT_COLORS.length];
 
                 return (
                   <div
                     key={topic.slug}
                     onClick={() => handleSelectTopic(topic.slug)}
-                    className={`group flex items-center justify-between px-3 py-2.5 rounded-xl border text-xs transition select-none cursor-pointer ${
+                    className={`group relative flex cursor-pointer select-none items-center justify-between rounded-xl px-3 py-2 text-xs transition-all ${
                       isActive
-                        ? 'bg-primary/10 text-primary border-primary/20 dark:bg-primary/20 dark:text-primary-300 font-semibold'
-                        : 'bg-slate-50/80 dark:bg-slate-800/40 border-slate-200/60 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100/70 dark:hover:bg-slate-800/60'
+                        ? 'bg-primary/10 font-semibold text-primary dark:bg-primary/20 dark:text-primary-300'
+                        : 'text-slate-600 hover:bg-slate-100/80 dark:text-slate-300 dark:hover:bg-slate-800/60'
                     }`}
                   >
-                    {/* Icon & Tên chủ đề */}
-                    <div className="flex items-center gap-2.5 min-w-0 flex-1 mr-2">
-                      <Folder
-                        size={15}
-                        className={`shrink-0 transition-colors ${
-                          isActive ? 'text-primary' : 'text-slate-400 group-hover:text-slate-500'
-                        }`}
-                      />
+                    {/* Tên chủ đề kèm Dot màu */}
+                    <div className="flex min-w-0 flex-1 items-center gap-2.5 mr-2">
+                      <span className={`h-2 w-2 shrink-0 rounded-full ${dotColor} ring-2 ring-black/5 dark:ring-white/10`} />
                       <span className="truncate">{topic.name}</span>
                     </div>
 
-                    {/* Nút Xóa chủ đề */}
+                    {/* Nút xóa thùng rác xuất hiện khi hover */}
                     <button
                       type="button"
                       onClick={(e) => handleDeleteTopic(e, topic)}
-                      title="Chuyển chủ đề vào thùng rác"
-                      className={`p-1 rounded-lg transition shrink-0 cursor-pointer ${
-                        isActive
-                          ? 'bg-primary/10 text-primary hover:bg-primary/15'
-                          : 'bg-slate-50/80 dark:bg-slate-800/40 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40'
-                      }`}
+                      title="Chuyển vào thùng rác"
+                      className="opacity-0 transition-opacity duration-150 group-hover:opacity-100 rounded-md p-1 text-slate-400 hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-950/40"
                     >
                       <Trash2 size={13} />
                     </button>
@@ -233,20 +228,20 @@ export default function Sidebar({ isOpen, onClose, onOpenNewTopicModal, isNewTop
             </div>
           </div>
 
-          {/* NHÓM 3: TIỆN ÍCH CUỐI BẢNG (Thùng rác & Cài đặt) */}
+          {/* NHÓM 3: TIỆN ÍCH CUỐI BẢNG */}
           <div className="mt-2 shrink-0 space-y-1 border-t border-slate-100 pt-3 dark:border-slate-800/80">
             <NavLink
               to="/trash"
               onClick={onClose}
               className={({ isActive }) =>
-                `flex items-center gap-2.5 px-3 py-2 rounded-xl border text-xs transition-all ${
+                `flex items-center gap-2.5 rounded-xl border px-3 py-2 text-xs transition-all ${
                   isActive
-                    ? 'bg-primary/10 text-primary border-primary/20 dark:bg-primary/20 dark:text-primary-300 font-semibold'
-                    : 'bg-slate-50/80 dark:bg-slate-800/40 border-slate-200/60 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-primary/10 hover:text-primary hover:border-primary/20 dark:hover:bg-primary/20 dark:hover:text-primary-300'
+                    ? 'border-primary/20 bg-primary/10 font-semibold text-primary dark:bg-primary/20 dark:text-primary-300'
+                    : 'border-slate-200/60 bg-slate-50/80 text-slate-600 hover:border-primary/20 hover:bg-primary/10 hover:text-primary dark:border-slate-800 dark:bg-slate-800/40 dark:text-slate-300 dark:hover:bg-primary/20 dark:hover:text-primary-300'
                 }`
               }
             >
-              <Trash2 size={16} className="shrink-0" />
+              <Trash2 size={15} className="shrink-0" />
               <span>Thùng rác</span>
             </NavLink>
 
@@ -254,21 +249,21 @@ export default function Sidebar({ isOpen, onClose, onOpenNewTopicModal, isNewTop
               to="/settings"
               onClick={onClose}
               className={({ isActive }) =>
-                `flex items-center gap-2.5 px-3 py-2 rounded-xl border text-xs transition-all ${
+                `flex items-center gap-2.5 rounded-xl border px-3 py-2 text-xs transition-all ${
                   isActive
-                    ? 'bg-primary/10 text-primary border-primary/20 dark:bg-primary/20 dark:text-primary-300 font-semibold'
-                    : 'bg-slate-50/80 dark:bg-slate-800/40 border-slate-200/60 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-primary/10 hover:text-primary hover:border-primary/20 dark:hover:bg-primary/20 dark:hover:text-primary-300'
+                    ? 'border-primary/20 bg-primary/10 font-semibold text-primary dark:bg-primary/20 dark:text-primary-300'
+                    : 'border-slate-200/60 bg-slate-50/80 text-slate-600 hover:border-primary/20 hover:bg-primary/10 hover:text-primary dark:border-slate-800 dark:bg-slate-800/40 dark:text-slate-300 dark:hover:bg-primary/20 dark:hover:text-primary-300'
                 }`
               }
             >
-              <Settings size={16} className="shrink-0" />
+              <Settings size={15} className="shrink-0" />
               <span>Cài đặt</span>
             </NavLink>
           </div>
         </div>
 
         {/* Chân Sidebar (Footer) */}
-        <div className="px-4 py-3 border-t border-slate-100 dark:border-slate-800/80 shrink-0 bg-slate-50/50 dark:bg-slate-900/50">
+        <div className="shrink-0 border-t border-slate-100 bg-slate-50/50 px-4 py-3 dark:border-slate-800/80 dark:bg-slate-900/50">
           <div className="flex items-center gap-2 text-[11px] text-slate-400">
             <Shield size={13} className="text-emerald-500" />
             <span>Mã hóa bảo mật nội bộ</span>
