@@ -26,5 +26,7 @@
       "name": "dtqttqq"
     }
   ],
-  "privatePasswordHash": "$2b$10$cJucCZsaXGmP.e0CfZBtuOSDyutlUdHWyePQ1J5MDnFGed/m1o6vq"
+  "privatePasswordHash": "$2b$10$cJucCZsaXGmP.e0CfZBtuOSDyutlUdHWyePQ1J5MDnFGed/m1o6vq",
+  "failedAttempts": 5,
+  "lockoutUntil": 1791337798093
 }
