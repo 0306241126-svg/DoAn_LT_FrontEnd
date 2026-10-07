@@ -27,9 +27,6 @@
     }
   ],
   "privatePasswordHash": "$2b$10$cJucCZsaXGmP.e0CfZBtuOSDyutlUdHWyePQ1J5MDnFGed/m1o6vq",
-  "failedAttempts": 5, // số lần nhập sai mật khẩu 
-  "lockoutUntil": 1791337798093 //Mốc thời gian (dạng Unix Timestamp tính bằng mili-giây) tài khoản được mở khóa để tiếp tục thử nhập lại.
-  // cơ chế: Khi người dùng gửi yêu cầu mở khóa, server sẽ lấy thời gian hiện tại (Date.now()) để so sánh với mốc 1791337798093
-  // Nếu chưa qua mốc thời gian này $\rightarrow$ Server lập tức chặn và thông báo tài khoản đang bị khóa. 
-  //Nếu đã qua mốc thời gian này $\rightarrow$ Server cho phép người dùng thử nhập lại mật khẩu.
+  "failedAttempts": 5, 
+  "lockoutUntil": 1791337798093 
 }  
