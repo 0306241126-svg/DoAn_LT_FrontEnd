@@ -87,10 +87,10 @@ export default function NoteViewModal({
         aria-labelledby="full-note-title"
         className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700/80 dark:bg-slate-900"
       >
-        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-5 py-4 dark:border-slate-800 sm:px-7">
+        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-primary bg-primary px-5 py-4 sm:px-7">
           <div className="min-w-0">
             {topicName && (
-              <span className="inline-flex max-w-full truncate rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
+              <span className="inline-flex max-w-full truncate rounded-full bg-white/15 px-2.5 py-1 text-xs font-semibold text-white">
                 {topicName}
               </span>
             )}
@@ -101,7 +101,7 @@ export default function NoteViewModal({
               onClick={handleCopy}
               title="Sao chép nội dung"
               aria-label="Sao chép nội dung"
-              className="flex h-9 min-w-9 items-center justify-center gap-1.5 rounded-lg px-2 text-slate-500 transition hover:bg-slate-100 hover:text-primary dark:text-slate-300 dark:hover:bg-slate-800"
+              className="flex h-9 min-w-9 items-center justify-center gap-1.5 rounded-lg px-2 text-white/80 transition hover:bg-white/15 hover:text-white"
             >
               <Clipboard size={16} />
               {copyMessage && <span className="text-xs">{copyMessage}</span>}
@@ -116,7 +116,7 @@ export default function NoteViewModal({
                 className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
                   isPinned
                     ? 'bg-primary/10 text-primary'
-                    : 'text-slate-500 hover:bg-slate-100 hover:text-primary dark:text-slate-300 dark:hover:bg-slate-800'
+                    : 'text-white/80 hover:bg-white/15 hover:text-white'
                 }`}
               >
                 <Pin size={16} className={isPinned ? 'fill-current' : ''} />
@@ -127,7 +127,7 @@ export default function NoteViewModal({
               onClick={() => onEdit(note)}
               title="Chỉnh sửa ghi chú"
               aria-label="Chỉnh sửa ghi chú"
-              className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 transition hover:bg-primary/10 hover:text-primary dark:text-slate-300"
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-white/80 transition hover:bg-white/15 hover:text-white"
             >
               <Edit2 size={16} />
             </button>
@@ -145,7 +145,7 @@ export default function NoteViewModal({
               onClick={onClose}
               title="Đóng"
               aria-label="Đóng"
-              className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-white/80 transition hover:bg-white/15 hover:text-white"
             >
               <X size={18} />
             </button>
