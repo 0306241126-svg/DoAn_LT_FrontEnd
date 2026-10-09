@@ -34,7 +34,7 @@ function normalizeSearchText(value) {
 }
 
 export default function PrivateNotesPage({ searchQuery = '' }) {
-  const { isUnlocked } = useAuthPrivate();
+  const { isUnlocked, privateDraftKey } = useAuthPrivate();
   const { confirm } = useConfirm();
   const pinStorageKey = `pinned-private-notes:${localStorage.getItem('app_username') || 'default_user'}`;
   
@@ -361,6 +361,8 @@ export default function PrivateNotesPage({ searchQuery = '' }) {
       <NoteFormModal
         isOpen={isModalOpen}
         initialData={editingNote}
+        isPrivate
+        draftKeyMaterial={privateDraftKey}
         onClose={() => setIsModalOpen(false)}
         onSave={handleSavePrivateNote}
       />
