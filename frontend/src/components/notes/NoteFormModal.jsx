@@ -195,23 +195,23 @@ export default function NoteFormModal({
 
   return (
     <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-      <div className="relative flex h-[92dvh] max-h-[96vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl dark:border-slate-700/60 dark:bg-slate-900 sm:h-[88vh] sm:p-6 lg:p-8">
-        
-        {/* Nút Đóng */}
-        <button
-          type="button"
-          onClick={onClose}
-          className="absolute right-5 top-5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition"
-          title="Đóng"
-        >
-          <X size={20} />
-        </button>
+      <div className="relative flex h-[92dvh] max-h-[96vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700/60 dark:bg-slate-900 sm:h-[88vh]">
+        <header className="flex shrink-0 items-center justify-between border-b border-primary bg-primary px-4 py-3 sm:px-6 lg:px-8">
+          <h3 className="text-xl font-bold text-white">
+            {initialData ? 'Chỉnh sửa ghi chú' : 'Tạo ghi chú mới'}
+          </h3>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg p-2 text-white/80 transition hover:bg-white/15 hover:text-white"
+            title="Đóng"
+            aria-label="Đóng"
+          >
+            <X size={20} />
+          </button>
+        </header>
 
-        <h3 className="mb-3 shrink-0 pr-8 text-xl font-bold text-slate-800 dark:text-slate-100">
-          {initialData ? 'Chỉnh sửa ghi chú' : 'Tạo ghi chú mới'}
-        </h3>
-
-        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden p-4 sm:p-6 lg:p-8">
           {showTopicSelector && (
             <div className="shrink-0 space-y-1.5">
               <label
