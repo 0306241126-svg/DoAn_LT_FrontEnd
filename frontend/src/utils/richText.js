@@ -79,5 +79,19 @@ export function sanitizeRichText(value = '') {
 
 export function getRichTextPlainText(value = '') {
   const parsed = new DOMParser().parseFromString(String(value), 'text/html');
-  return (parsed.body.textContent || '').replace(/\u00a0/g, ' ').trim();
+  const blockTags = new Set(['BLOCKQUOTE', 'DIV', 'H1', 'H2', 'H3', 'LI', 'OL', 'P', 'PRE', 'UL']);
+  const extractText = (node) => {
+    if (node.nodeType === Node.TEXT_NODE) return node.textContent || '';
+    if (node.nodeType !== Node.ELEMENT_NODE) return '';
+    if (node.tagName === 'BR') return '\n';
+
+    const content = [...node.childNodes].map(extractText).join('');
+    return blockTags.has(node.tagName) ? `\n${content}\n` : content;
+  };
+
+  return extractText(parsed.body)
+    .replace(/\u00a0/g, ' ')
+    .replace(/[ \t]*\n[ \t]*/g, '\n')
+    .replace(/\n{2,}/g, '\n')
+    .trim();
 }

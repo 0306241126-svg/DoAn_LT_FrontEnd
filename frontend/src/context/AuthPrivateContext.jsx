@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { privateService } from '../services/privateService';
+import { derivePrivateDraftKey } from '../utils/noteDrafts';
 
 const AuthPrivateContext = createContext();
 
@@ -8,13 +9,16 @@ const AUTO_LOCK_TIME = 15 * 60 * 1000; // 15 phút (ms)
 export function AuthPrivateProvider({ children }) {
   const [token, setToken] = useState(() => sessionStorage.getItem('private_token') || null);
   const [isUnlocked, setIsUnlocked] = useState(() => Boolean(sessionStorage.getItem('private_token')));
+  const [privateDraftKey, setPrivateDraftKey] = useState(() => sessionStorage.getItem('private_note_draft_key') || null);
   const timerRef = useRef(null);
 
   // Hàm khóa vùng riêng tư và dọn dẹp bộ nhớ
   const lock = useCallback(() => {
     sessionStorage.removeItem('private_token');
+    sessionStorage.removeItem('private_note_draft_key');
     setToken(null);
     setIsUnlocked(false);
+    setPrivateDraftKey(null);
     if (timerRef.current) {
       clearTimeout(timerRef.current);
       timerRef.current = null;
@@ -35,11 +39,14 @@ export function AuthPrivateProvider({ children }) {
   // Hàm mở khóa vùng riêng tư
   const unlock = async (password) => {
     try {
+      const draftKey = await derivePrivateDraftKey(password);
       const response = await privateService.unlockPrivate(password);
       if (response && response.token) {
         sessionStorage.setItem('private_token', response.token);
+        sessionStorage.setItem('private_note_draft_key', draftKey);
         setToken(response.token);
         setIsUnlocked(true);
+        setPrivateDraftKey(draftKey);
         resetLockTimer();
         return true;
       }
@@ -83,6 +90,7 @@ export function AuthPrivateProvider({ children }) {
       value={{
         isUnlocked,
         token,
+        privateDraftKey,
         unlock,
         lock,
       }}

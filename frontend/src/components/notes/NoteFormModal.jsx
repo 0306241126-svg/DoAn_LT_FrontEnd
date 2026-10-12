@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   AlignCenter,
   AlignLeft,
@@ -19,6 +19,7 @@ import {
 import Input from '../common/Input';
 import Button from '../common/Button';
 import { getRichTextPlainText, sanitizeRichText } from '../../utils/richText';
+import { deleteNoteDraft, loadNoteDraft, saveNoteDraft } from '../../utils/noteDrafts';
 
 const formattingTools = [
   { label: 'In đậm', icon: Bold, command: 'bold' },
@@ -46,8 +47,11 @@ export default function NoteFormModal({
   topics = EMPTY_TOPICS,
   showTopicSelector = false,
   defaultTopicSlug = '',
+  isPrivate = false,
+  draftKeyMaterial,
 }) {
   const [title, setTitle] = useState('');
+  const [contentHtml, setContentHtml] = useState('');
   const [wordCount, setWordCount] = useState(0);
   const [characterCount, setCharacterCount] = useState(0);
   const [topicSlug, setTopicSlug] = useState(defaultTopicSlug);
@@ -60,12 +64,45 @@ export default function NoteFormModal({
   // State quản lý lỗi
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [draftStatus, setDraftStatus] = useState('idle');
+  const [draftReady, setDraftReady] = useState(false);
+  const draftWriteQueueRef = useRef(Promise.resolve());
+  const draftDeletedRef = useRef(false);
+  const draftId = initialData?.id ? `note:${initialData.id}` : 'new';
+
+  const persistDraft = useCallback((draft) => {
+    const write = draftWriteQueueRef.current.then(() => saveNoteDraft(draftId, draft, {
+      isPrivate,
+      keyMaterial: draftKeyMaterial,
+    }));
+    draftWriteQueueRef.current = write.catch((draftError) => {
+      console.error('Không thể lưu bản nháp ghi chú:', draftError);
+      setDraftStatus('error');
+    });
+    return write;
+  }, [draftId, isPrivate, draftKeyMaterial]);
+
+  const closeWithDraft = async () => {
+    if (draftReady && !draftDeletedRef.current) {
+      setDraftStatus('saving');
+      try {
+        await persistDraft({ title, content: contentHtml, topicSlug });
+        setDraftStatus('saved');
+      } catch {
+        setDraftStatus('error');
+      }
+    }
+    onClose();
+  };
 
   // Nạp dữ liệu khi mở form (nếu đang ở chế độ chỉnh sửa)
   useEffect(() => {
+    let isCurrent = true;
     if (isOpen) {
+      draftDeletedRef.current = false;
       setTitle(initialData?.title || '');
       const safeContent = sanitizeRichText(initialData?.content || '');
+      setContentHtml(safeContent);
       if (editorRef.current) editorRef.current.innerHTML = safeContent;
       updateContentCounts(safeContent);
       setTopicSlug(initialData?.topicSlug || defaultTopicSlug || topics[0]?.slug || '');
@@ -73,8 +110,46 @@ export default function NoteFormModal({
       setLinkUrl('');
       setIsLinkInputOpen(false);
       setError(''); // Xóa lỗi cũ khi mở lại modal
+      setDraftStatus('idle');
+      setDraftReady(false);
+
+      loadNoteDraft(draftId, { isPrivate, keyMaterial: draftKeyMaterial })
+        .then((draft) => {
+          if (!isCurrent) return;
+          if (draft) {
+            const restoredContent = sanitizeRichText(draft.content || '');
+            setTitle(draft.title || '');
+            setContentHtml(restoredContent);
+            if (editorRef.current) editorRef.current.innerHTML = restoredContent;
+            updateContentCounts(restoredContent);
+            setTopicSlug(draft.topicSlug || initialData?.topicSlug || defaultTopicSlug || topics[0]?.slug || '');
+            setDraftStatus('restored');
+          }
+          setDraftReady(true);
+        })
+        .catch((draftError) => {
+          if (!isCurrent) return;
+          console.error('Không thể khôi phục bản nháp ghi chú:', draftError);
+          setDraftStatus('error');
+          setDraftReady(true);
+        });
     }
-  }, [isOpen, initialData, defaultTopicSlug, topics]);
+    return () => { isCurrent = false; };
+  }, [isOpen, initialData, defaultTopicSlug, topics, draftId, isPrivate, draftKeyMaterial]);
+
+  useEffect(() => {
+    if (!isOpen || !draftReady) return undefined;
+
+    const timer = window.setTimeout(() => {
+      if (draftDeletedRef.current) return;
+      setDraftStatus('saving');
+      persistDraft({ title, content: contentHtml, topicSlug })
+        .then(() => setDraftStatus('saved'))
+        .catch(() => {});
+    }, 400);
+
+    return () => window.clearTimeout(timer);
+  }, [isOpen, draftReady, title, contentHtml, topicSlug, persistDraft]);
 
   useEffect(() => {
     if (!isOpen) return undefined;
@@ -92,6 +167,7 @@ export default function NoteFormModal({
   if (!isOpen) return null;
 
   function updateContentCounts(value) {
+    setContentHtml(value);
     const text = getRichTextPlainText(value);
     setWordCount(text ? text.split(/\s+/).filter(Boolean).length : 0);
     setCharacterCount(text.length);
@@ -180,11 +256,17 @@ export default function NoteFormModal({
 
     try {
       const content = sanitizeRichText(editorRef.current?.innerHTML || '');
-      await onSave({
-        title: title.trim(), 
-        content,
-        topicSlug,
-      });
+      const draft = { title: title.trim(), content, topicSlug };
+      try {
+        await persistDraft(draft);
+      } catch {
+        setDraftStatus('error');
+      }
+      await onSave(draft);
+      await draftWriteQueueRef.current;
+      deleteNoteDraft(draftId, { isPrivate });
+      draftDeletedRef.current = true;
+      setDraftStatus('idle');
       onClose();
     } catch (err) {
       setError(err.message || 'Đã xảy ra lỗi khi lưu ghi chú');
@@ -195,23 +277,23 @@ export default function NoteFormModal({
 
   return (
     <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-      <div className="relative flex h-[92dvh] max-h-[96vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl dark:border-slate-700/60 dark:bg-slate-900 sm:h-[88vh] sm:p-6 lg:p-8">
-        
-        {/* Nút Đóng */}
-        <button
-          type="button"
-          onClick={onClose}
-          className="absolute right-5 top-5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition"
-          title="Đóng"
-        >
-          <X size={20} />
-        </button>
+      <div className="relative flex h-[92dvh] max-h-[96vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700/60 dark:bg-slate-900 sm:h-[88vh]">
+        <header className="flex shrink-0 items-center justify-between border-b border-primary bg-primary px-4 py-3 sm:px-6 lg:px-8">
+          <h3 className="text-xl font-bold text-white">
+            {initialData ? 'Chỉnh sửa ghi chú' : 'Tạo ghi chú mới'}
+          </h3>
+          <button
+            type="button"
+            onClick={() => { void closeWithDraft(); }}
+            className="rounded-lg p-2 text-white/80 transition hover:bg-white/15 hover:text-white"
+            title="Đóng"
+            aria-label="Đóng"
+          >
+            <X size={20} />
+          </button>
+        </header>
 
-        <h3 className="mb-3 shrink-0 pr-8 text-xl font-bold text-slate-800 dark:text-slate-100">
-          {initialData ? 'Chỉnh sửa ghi chú' : 'Tạo ghi chú mới'}
-        </h3>
-
-        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden p-4 sm:p-6 lg:p-8">
           {showTopicSelector && (
             <div className="shrink-0 space-y-1.5">
               <label
@@ -234,6 +316,17 @@ export default function NoteFormModal({
                 ))}
               </select>
             </div>
+          )}
+
+          {draftStatus !== 'idle' && (
+            <p className={`shrink-0 text-xs ${
+              draftStatus === 'error' ? 'text-rose-600 dark:text-rose-400' : 'text-slate-500 dark:text-slate-400'
+            }`} role={draftStatus === 'error' ? 'alert' : 'status'}>
+              {draftStatus === 'saving' && 'Đang lưu nháp trên thiết bị...'}
+              {draftStatus === 'saved' && (isPrivate ? 'Nháp riêng tư đã được mã hóa và lưu trên thiết bị.' : 'Nháp đã được lưu trên thiết bị.')}
+              {draftStatus === 'restored' && 'Đã khôi phục nháp đã lưu trên thiết bị.'}
+              {draftStatus === 'error' && 'Không thể lưu hoặc khôi phục nháp trên thiết bị. Nội dung vẫn còn trong biểu mẫu hiện tại.'}
+            </p>
           )}
 
           {/* Ô nhập Tiêu đề có tích hợp hiển thị lỗi */}
@@ -376,7 +469,7 @@ export default function NoteFormModal({
               {wordCount} từ · {characterCount} ký tự <span className="hidden sm:inline">· Ctrl + Enter để lưu</span>
             </span>
             <div className="flex justify-end gap-3">
-              <Button type="button" variant="secondary" size="sm" onClick={onClose}>
+              <Button type="button" variant="secondary" size="sm" onClick={() => { void closeWithDraft(); }}>
                 Hủy
               </Button>
               <Button type="submit" size="sm" loading={loading}>

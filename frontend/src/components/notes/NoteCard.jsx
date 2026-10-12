@@ -115,7 +115,7 @@ export default function NoteCard({
           )}
           {hasContent ? (
             <div className="relative">
-              <p className="line-clamp-3 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+              <p className="line-clamp-3 whitespace-pre-line text-xs leading-relaxed text-slate-500 dark:text-slate-400">
                 {previewContent}
               </p>
               <div className="pointer-events-none absolute bottom-0 right-0 bg-gradient-to-l from-white via-white/90 to-transparent pl-8 pt-2 text-[11px] font-semibold text-primary dark:from-slate-900 dark:via-slate-900/90">
